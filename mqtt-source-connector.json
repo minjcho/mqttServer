@@ -1,0 +1,14 @@
+{
+  "name": "mqtt-source-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.mqtt.MqttSourceConnector",
+    "tasks.max": "1",
+    "mqtt.server.uri": "tcp://mosquitto:1883",
+    "mqtt.topics": "test/+",
+    "kafka.topic": "mqtt-messages",
+    "mqtt.qos": "0",
+    "mqtt.client.id": "kafka-connect-client",
+    "key.converter": "org.apache.kafka.connect.storage.StringConverter",
+    "value.converter": "org.apache.kafka.connect.storage.StringConverter"
+  }
+}
