@@ -1,0 +1,34 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: websocket-coordinate-server
+  
+  # Redis 설정
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      database: 0
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 8
+          min-idle: 2
+
+# 로깅 설정
+logging:
+  level:
+    com.example.websocket: DEBUG
+    org.springframework.web.socket: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# 커스텀 설정
+websocket:
+  # 좌표 데이터 전송 주기 (밀리초)
+  broadcast-interval: 1000
+  # Redis에서 읽어올 최대 메시지 수
+  max-messages: 10

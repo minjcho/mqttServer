@@ -54,18 +54,37 @@ services:
     networks:
       - mqtt_network
 
-  # Kafka 컨슈머 (간단한 로그 출력용)
-  kafka-consumer:
-    build:
-      context: ./kafka-redis-consumer
-    container_name: kafka-consumer
-    depends_on:
-      kafka:
-        condition: service_healthy
+  # Redis 서버
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
     restart: unless-stopped
     networks:
       - mqtt_network
-    command: ["python", "consumer.py"]
+    command: redis-server --appendonly yes
+
+  # Kafka -> Redis Consumer
+  kafka-redis-consumer:
+    build:
+      context: ./kafka-redis-consumer
+    container_name: kafka-redis-consumer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - mqtt_network
+    environment:
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    command: ["python", "consumer_fixed.py"]
 
   kafka-topics-init:
     image: confluentinc/cp-kafka:7.5.0
@@ -80,8 +99,26 @@ services:
       - mqtt_network
     restart: "no"
 
+  # WebSocket 좌표 스트리밍 서버
+  websocket-server:
+    build:
+      context: ./websocket-server
+    container_name: websocket-server
+    depends_on:
+      redis:
+        condition: service_started
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - mqtt_network
+    environment:
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_DATA_REDIS_PORT=6379
+
 volumes:
   kafka_data:
+  redis_data:
 
 networks:
   mqtt_network:

@@ -95,6 +95,8 @@ class MQTTKafkaBridge:
                 "qos": msg.qos
             }
             
+            logger.info(f"🚀 Sending to Kafka topic '{self.kafka_topic}': {kafka_message}")
+            
             # Kafka로 전송
             future = self.kafka_producer.send(
                 self.kafka_topic,
@@ -103,8 +105,12 @@ class MQTTKafkaBridge:
             )
             
             # 전송 결과 확인
-            record_metadata = future.get(timeout=10)
-            logger.info(f"Sent to Kafka - Topic: {topic}, Payload: {payload}")
+            try:
+                record_metadata = future.get(timeout=10)
+                logger.info(f"✅ Successfully sent to Kafka - Topic: {record_metadata.topic}, Partition: {record_metadata.partition}, Offset: {record_metadata.offset}")
+                logger.info(f"📨 Original MQTT Topic: {topic}, Payload: {payload}")
+            except Exception as e:
+                logger.error(f"❌ Failed to send to Kafka: {e}")
             
         except Exception as e:
             logger.error(f"Error processing MQTT message: {e}")

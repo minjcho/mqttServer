@@ -4,8 +4,6 @@ FROM confluentinc/cp-kafka:7.5.0
 RUN mkdir -p /tmp/kraft-combined-logs && chmod 777 /tmp/kraft-combined-logs
 
 # 스크립트 디렉토리 생성 및 복사
-# COPY ./scripts /scripts
-# RUN chmod +x /scripts/*.sh # WSL 에서 실행 시 오류 발생
 COPY --chmod=755 ./scripts /scripts
 
 # Kafka 설정 파일 복사
