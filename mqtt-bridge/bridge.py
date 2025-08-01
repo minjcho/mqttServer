@@ -22,6 +22,7 @@ class MQTTKafkaBridge:
             "sensors/+/coordX",
             "sensors/+/coordY", 
             "sensors/+/motorRPM",
+            "sensors/+/coordinates",  # 통합 좌표 토픽 추가
             "test/+"
         ]
         

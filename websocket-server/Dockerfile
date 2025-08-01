@@ -7,6 +7,9 @@ COPY mvnw .
 COPY .mvn .mvn
 COPY pom.xml .
 
+# Maven wrapper 실행 권한 부여 및 줄바꿈 문자 변환
+RUN sed -i 's/\r$//' ./mvnw && chmod +x ./mvnw
+
 # 의존성 다운로드 (캐싱 최적화)
 RUN ./mvnw dependency:go-offline -B
 

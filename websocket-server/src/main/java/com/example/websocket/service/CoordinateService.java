@@ -43,49 +43,54 @@ public class CoordinateService {
                 return latestCoordinate;
             }
 
-            Map<String, Object> latestData = new HashMap<>();
-            
-            // 각 메시지를 확인하여 좌표 데이터 추출
-            for (String key : messageKeys) {
-                try {
-                    Map<Object, Object> messageData = redisTemplate.opsForHash().entries(key);
-                    
-                    if (messageData.containsKey("message")) {
-                        String messageJson = (String) messageData.get("message");
-                        JsonNode messageNode = objectMapper.readTree(messageJson);
-                        
-                        // MQTT 메시지에서 payload 추출
-                        if (messageNode.has("payload")) {
-                            String payload = messageNode.get("payload").asText();
-                            JsonNode payloadNode = objectMapper.readTree(payload);
-                            
-                            // coordX와 coordY 데이터 추출
-                            if (payloadNode.has("coordX")) {
-                                latestData.put("coordX", payloadNode.get("coordX").asDouble());
-                            }
-                            if (payloadNode.has("coordY")) {
-                                latestData.put("coordY", payloadNode.get("coordY").asDouble());
-                            }
-                            
-                            // 타임스탬프 저장
-                            if (messageData.containsKey("timestamp")) {
-                                latestData.put("timestamp", messageData.get("timestamp"));
-                            }
-                        }
+            // 🔥 NEW: 오프셋 기준으로 정렬하여 가장 최신 메시지 찾기
+            String latestKey = messageKeys.stream()
+                .filter(key -> key.startsWith("message:mqtt-messages:"))
+                .max((k1, k2) -> {
+                    try {
+                        // key 형식: message:mqtt-messages:partition:offset
+                        int offset1 = Integer.parseInt(k1.substring(k1.lastIndexOf(':') + 1));
+                        int offset2 = Integer.parseInt(k2.substring(k2.lastIndexOf(':') + 1));
+                        return Integer.compare(offset1, offset2);
+                    } catch (Exception e) {
+                        return 0;
                     }
-                } catch (Exception e) {
-                    logger.warn("Failed to parse message from key {}: {}", key, e.getMessage());
-                }
+                })
+                .orElse(null);
+
+            if (latestKey == null) {
+                logger.debug("No valid message key found");
+                return latestCoordinate;
             }
 
-            // 좌표 데이터가 있으면 업데이트
-            if (latestData.containsKey("coordX") || latestData.containsKey("coordY")) {
-                Double coordX = (Double) latestData.getOrDefault("coordX", latestCoordinate.getCoordX());
-                Double coordY = (Double) latestData.getOrDefault("coordY", latestCoordinate.getCoordY());
-                String timestamp = (String) latestData.getOrDefault("timestamp", "");
+            logger.debug("🎯 Using latest key: {}", latestKey);
+
+            // 가장 최신 메시지에서 좌표 데이터 추출
+            Map<Object, Object> messageData = redisTemplate.opsForHash().entries(latestKey);
+            
+            if (!messageData.containsKey("message")) {
+                logger.debug("No message content in key: {}", latestKey);
+                return latestCoordinate;
+            }
+
+            String messageJson = (String) messageData.get("message");
+            JsonNode messageNode = objectMapper.readTree(messageJson);
+            
+            // MQTT 메시지에서 payload 추출
+            if (messageNode.has("payload")) {
+                String payload = messageNode.get("payload").asText();
+                JsonNode payloadNode = objectMapper.readTree(payload);
                 
-                latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
-                logger.debug("Updated coordinates: X={}, Y={}", coordX, coordY);
+                // coordX와 coordY 데이터 추출
+                if (payloadNode.has("coordX") && payloadNode.has("coordY")) {
+                    Double coordX = payloadNode.get("coordX").asDouble();
+                    Double coordY = payloadNode.get("coordY").asDouble();
+                    String timestamp = (String) messageData.getOrDefault("timestamp", "");
+                    
+                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
+                    logger.debug("✅ Updated to LATEST coordinates: X={}, Y={} from key={}", 
+                               coordX, coordY, latestKey);
+                }
             }
 
         } catch (Exception e) {
