@@ -22,7 +22,7 @@ def publish_test_messages():
     
     try:
         # Mosquitto 컨테이너에 연결
-        client.connect("localhost", 1883, 60)
+        client.connect("localhost", 3123, 60)
         client.loop_start()
         
         # 테스트 메시지들

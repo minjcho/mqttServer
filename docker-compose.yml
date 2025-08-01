@@ -5,7 +5,7 @@ services:
     build:
       context: ./mosquitto
     ports:
-      - "1883:1883"
+      - "3123:3123"
     networks:
       - mqtt_network
 

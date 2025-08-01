@@ -17,7 +17,7 @@ class MQTTKafkaBridge:
     def __init__(self):
         # MQTT 설정
         self.mqtt_host = "mosquitto"
-        self.mqtt_port = 1883
+        self.mqtt_port = 3123
         self.mqtt_topics = [
             "sensors/+/coordX",
             "sensors/+/coordY", 

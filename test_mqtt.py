@@ -15,7 +15,7 @@ client.on_connect = on_connect
 client.on_publish = on_publish
 
 # MQTT 브로커에 연결
-client.connect("localhost", 1883, 60)
+client.connect("localhost", 3123, 60)
 
 # 루프 시작
 client.loop_start()

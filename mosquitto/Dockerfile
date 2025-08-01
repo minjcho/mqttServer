@@ -4,5 +4,5 @@ COPY mosquitto.conf /mosquitto/config/
 COPY passwd /mosquitto/config/
 
 
-EXPOSE 1883
+EXPOSE 3123
 CMD ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]

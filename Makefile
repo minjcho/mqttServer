@@ -169,7 +169,7 @@ setup:
 	@echo "=== System ready! ==="
 	@echo ""
 	@echo "Available services:"
-	@echo "  - MQTT Broker:     localhost:1883"
+	@echo "  - MQTT Broker:     localhost:3123"
 	@echo "  - Kafka:          localhost:9092"
 	@echo "  - Redis:          localhost:6379"
 	@echo "  - Redis API:      http://localhost:8000"
