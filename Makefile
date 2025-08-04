@@ -95,12 +95,12 @@ websocket:
 websocket-test:
 	@echo "Testing WebSocket API endpoints..."
 	@echo "1. Health check:"
-	curl -s http://localhost:8080/api/health | jq .
+	curl -s http://localhost:8081/api/health | jq .
 	@echo ""
 	@echo "2. Stats:"
-	curl -s http://localhost:8080/api/stats | jq .
+	curl -s http://localhost:8081/api/stats | jq .
 	@echo ""
-	@echo "3. WebSocket UI: http://localhost:8080"
+	@echo "3. WebSocket UI: http://localhost:8081"
 
 # Kafka 관련 명령어들
 init-topics:
@@ -147,9 +147,9 @@ test-websocket-pipeline:
 	sleep 5
 	@echo ""
 	@echo "3. Checking WebSocket API:"
-	curl -s http://localhost:8080/api/stats | jq . || echo "Data not yet available"
+	curl -s http://localhost:8081/api/stats | jq . || echo "Data not yet available"
 	@echo ""
-	@echo "4. Open WebSocket client: http://localhost:8080"
+	@echo "4. Open WebSocket client: http://localhost:8081"
 
 # 전체 시스템 설정
 setup:
@@ -173,7 +173,7 @@ setup:
 	@echo "  - Kafka:          localhost:9092"
 	@echo "  - Redis:          localhost:6379"
 	@echo "  - Redis API:      http://localhost:8000"
-	@echo "  - WebSocket Server: http://localhost:8080"
-	@echo "  - WebSocket UI:    http://localhost:8080"
+	@echo "  - WebSocket Server: http://localhost:8081"
+	@echo "  - WebSocket UI:    http://localhost:8081"
 	@echo ""
 	@echo "Test the complete pipeline with: make test-websocket-pipeline"

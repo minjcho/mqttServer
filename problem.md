@@ -45,7 +45,7 @@ consumer.assign(topic_partitions)
 ## 문제 2: Spring Boot WebSocket 서버 정적 파일 서빙 문제
 
 ### 증상
-- http://localhost:8080 접속 시 404 에러 발생
+- http://localhost:8081 접속 시 404 에러 발생
 - API 엔드포인트는 정상 작동 (`/api/status`, `/api/coordinates`)
 - 정적 HTML 파일에 접근할 수 없음
 
@@ -72,8 +72,8 @@ public String index() {
 ```
 
 ### 결과
-- ✅ http://localhost:8080 정상 접속 (302 리다이렉트)
-- ✅ http://localhost:8080/index.html 정상 서빙 (200 OK)
+- ✅ http://localhost:8081 정상 접속 (302 리다이렉트)
+- ✅ http://localhost:8081/index.html 정상 서빙 (200 OK)
 - ✅ 실시간 WebSocket 연결 및 좌표 데이터 스트리밍 정상 작동
 
 ---
@@ -317,7 +317,7 @@ WebSocket 서버 (Spring Boot) ← [알고리즘 개선]
 - ✅ 전체 데이터 파이프라인 정상 작동
 - ✅ **실시간 좌표 데이터 스트리밍 성공** (고정 데이터 문제 해결)
 - ✅ 웹 인터페이스를 통한 모니터링 가능
-- ✅ http://localhost:8080 접속 가능
+- ✅ http://localhost:8081 접속 가능
 - ✅ **항상 최신 데이터 표시** (무작위 선택 문제 해결)
 - ✅ **폴백 메커니즘으로 시스템 안정성 보장**
 - ✅ **Redis 데이터 관리 최적화**

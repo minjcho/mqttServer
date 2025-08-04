@@ -20,5 +20,5 @@ COPY src src
 RUN ./mvnw clean package -DskipTests
 
 # 애플리케이션 실행
-EXPOSE 8080
+EXPOSE 8081
 CMD ["java", "-jar", "target/websocket-server-1.0.0.jar"]
