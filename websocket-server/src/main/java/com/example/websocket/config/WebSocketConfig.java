@@ -18,8 +18,13 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
+        // 일반 WebSocket 엔드포인트
+        registry.addHandler(coordinateWebSocketHandler, "/ws/coordinates")
+                .setAllowedOriginPatterns("*");
+        
+        // SockJS 엔드포인트
         registry.addHandler(coordinateWebSocketHandler, "/coordinates")
-                .setAllowedOriginPatterns("*") // allowedOriginPatterns로 변경
-                .withSockJS(); // SockJS fallback 지원
+                .setAllowedOriginPatterns("*")
+                .withSockJS();
     }
 }
