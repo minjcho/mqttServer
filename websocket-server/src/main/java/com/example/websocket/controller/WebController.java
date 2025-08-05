@@ -17,13 +17,13 @@ public class WebController {
         this.coordinateService = coordinateService;
     }
 
-    /**
-     * 테스트 페이지 제공
-     */
-    @GetMapping("/")
-    public String index() {
-        return "redirect:/index.html";
-    }
+    // /**
+    //  * 테스트 페이지 제공
+    //  */
+    // @GetMapping("/")
+    // public String index() {
+    //     return "redirect:/index.html";
+    // }
 
     /**
      * 서버 상태 API
