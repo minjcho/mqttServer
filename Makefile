@@ -1,7 +1,7 @@
 .PHONY: help build up down logs clean mqtt-bridge-logs kafka-logs redis-logs redis-api-logs kafka-redis-consumer-logs websocket-logs
 .PHONY: init-topics list-topics test-mqtt consume-messages setup
 .PHONY: redis redis-cli redis-api-test test-redis-pipeline
-.PHONY: websocket websocket-test test-websocket-pipeline
+.PHONY: websocket websocket-test test-websocket-pipeline all fclean re
 
 help:
 	@echo "Available commands:"
@@ -35,6 +35,8 @@ help:
 	@echo "  setup              - 전체 시스템 설정 및 시작"
 
 # 기본 Docker Compose 명령어들
+all: build up
+
 build:
 	docker compose build
 
@@ -50,6 +52,10 @@ logs:
 clean:
 	docker compose down -v --rmi all --remove-orphans
 	docker system prune -af
+
+fclean: down clean
+
+re: fclean all
 
 # 개별 서비스 로그 확인
 mqtt-bridge-logs:
