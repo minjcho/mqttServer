@@ -53,9 +53,12 @@ public class CoordinateBroadcastScheduler {
             CoordinateData coordinates = coordinateService.getLatestCoordinates();
             
             // 좌표 데이터가 없거나 기본값이면 랜덤 데이터로 대체 (테스트 목적)
-            if (coordinates.getCoordX() == 0.0 && coordinates.getCoordY() == 0.0) {
+            if (coordinates == null || (coordinates.getCoordX() == 0.0 && coordinates.getCoordY() == 0.0 && "system".equals(coordinates.getSource()))) {
                 coordinates = coordinateService.generateRandomCoordinates();
                 logger.debug("Using random coordinates as no data available from Redis");
+            } else {
+                logger.debug("✅ Using Redis coordinates: X={}, Y={}, source={}", 
+                           coordinates.getCoordX(), coordinates.getCoordY(), coordinates.getSource());
             }
 
             // 브로드캐스트용 메시지 생성

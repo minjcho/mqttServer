@@ -31,10 +31,12 @@ public class RedisConfig {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
         
-        // String serializer 사용
+        // String serializer 사용 (키에만 적용)
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
+        
+        // Value는 기본 serializer 사용 (JdkSerializationRedisSerializer 대신 GenericToStringSerializer 또는 StringRedisSerializer)
         template.setValueSerializer(stringSerializer);
         template.setHashValueSerializer(stringSerializer);
         

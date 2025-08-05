@@ -19,7 +19,7 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(coordinateWebSocketHandler, "/coordinates")
-                .setAllowedOrigins("*") // 개발용 - 운영에서는 특정 도메인으로 제한
+                .setAllowedOriginPatterns("*") // allowedOriginPatterns로 변경
                 .withSockJS(); // SockJS fallback 지원
     }
 }

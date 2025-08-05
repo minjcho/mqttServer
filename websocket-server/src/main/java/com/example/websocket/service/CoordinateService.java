@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -16,7 +16,7 @@ public class CoordinateService {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinateService.class);
     
-    private final RedisTemplate<String, Object> redisTemplate;
+    private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     
     @Value("${websocket.max-messages:10}")
@@ -25,7 +25,7 @@ public class CoordinateService {
     // 최신 좌표 데이터를 캐시
     private volatile CoordinateData latestCoordinate = new CoordinateData(0.0, 0.0, "", "system");
 
-    public CoordinateService(RedisTemplate<String, Object> redisTemplate) {
+    public CoordinateService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
         this.objectMapper = new ObjectMapper();
     }
@@ -43,7 +43,7 @@ public class CoordinateService {
                 return latestCoordinate;
             }
 
-            // 🔥 NEW: 오프셋 기준으로 정렬하여 가장 최신 메시지 찾기
+            // 오프셋 기준으로 정렬하여 가장 최신 메시지 찾기
             String latestKey = messageKeys.stream()
                 .filter(key -> key.startsWith("message:mqtt-messages:"))
                 .max((k1, k2) -> {
@@ -65,38 +65,82 @@ public class CoordinateService {
 
             logger.debug("🎯 Using latest key: {}", latestKey);
 
-            // 가장 최신 메시지에서 좌표 데이터 추출
-            Map<Object, Object> messageData = redisTemplate.opsForHash().entries(latestKey);
+            // Redis에서 해시 데이터 직접 읽기
+            Map<Object, Object> rawData = redisTemplate.opsForHash().entries(latestKey);
             
-            if (!messageData.containsKey("message")) {
-                logger.debug("No message content in key: {}", latestKey);
+            if (rawData == null || rawData.isEmpty()) {
+                logger.debug("❌ No data found for key: {}", latestKey);
                 return latestCoordinate;
             }
 
-            String messageJson = (String) messageData.get("message");
-            JsonNode messageNode = objectMapper.readTree(messageJson);
+            logger.debug("📥 Retrieved {} fields from Redis", rawData.size());
             
-            // MQTT 메시지에서 payload 추출
-            if (messageNode.has("payload")) {
-                String payload = messageNode.get("payload").asText();
-                JsonNode payloadNode = objectMapper.readTree(payload);
+            // Object를 String으로 변환
+            Map<String, String> messageData = new HashMap<>();
+            for (Map.Entry<Object, Object> entry : rawData.entrySet()) {
+                messageData.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+            }
+            
+            if (!messageData.containsKey("message")) {
+                logger.debug("❌ No 'message' field found. Available fields: {}", messageData.keySet());
+                return latestCoordinate;
+            }
+
+            String messageJson = messageData.get("message");
+            logger.debug("📝 Raw message JSON: {}", messageJson);
+            
+            // JSON 파싱
+            JsonNode messageNode = objectMapper.readTree(messageJson);
+            logger.debug("🔍 Parsed message structure: {}", messageNode.toPrettyString());
+            
+            // Telegraf 포맷에서 좌표 데이터 추출
+            if (messageNode.has("fields") && messageNode.get("fields").has("value")) {
+                String valueString = messageNode.get("fields").get("value").asText();
+                logger.debug("📊 Extracting coordinates from value: {}", valueString);
                 
-                // coordX와 coordY 데이터 추출
+                // value 필드를 JSON으로 파싱
+                JsonNode valueNode = objectMapper.readTree(valueString);
+                
+                if (valueNode.has("coordX") && valueNode.has("coordY")) {
+                    Double coordX = valueNode.get("coordX").asDouble();
+                    Double coordY = valueNode.get("coordY").asDouble();
+                    String timestamp = messageData.getOrDefault("timestamp", "");
+                    
+                    // 새로운 좌표로 업데이트
+                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
+                    
+                    logger.info("✅ Successfully updated coordinates: X={}, Y={} from key={}", 
+                               coordX, coordY, latestKey);
+                    return latestCoordinate;
+                } else {
+                    logger.debug("⚠️ No coordX/coordY found in value: {}", valueNode);
+                }
+            } 
+            // Python bridge 포맷 지원 (혹시 다른 데이터 소스가 있을 경우)
+            else if (messageNode.has("payload")) {
+                String payload = messageNode.get("payload").asText();
+                logger.debug("🐍 Python bridge format detected, payload: {}", payload);
+                
+                JsonNode payloadNode = objectMapper.readTree(payload);
                 if (payloadNode.has("coordX") && payloadNode.has("coordY")) {
                     Double coordX = payloadNode.get("coordX").asDouble();
                     Double coordY = payloadNode.get("coordY").asDouble();
-                    String timestamp = (String) messageData.getOrDefault("timestamp", "");
+                    String timestamp = messageData.getOrDefault("timestamp", "");
                     
                     latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
-                    logger.debug("✅ Updated to LATEST coordinates: X={}, Y={} from key={}", 
-                               coordX, coordY, latestKey);
+                    logger.info("✅ Successfully updated coordinates from Python format: X={}, Y={}", coordX, coordY);
+                    return latestCoordinate;
                 }
+            } else {
+                logger.debug("❌ Unsupported message format: {}", messageNode);
             }
 
         } catch (Exception e) {
-            logger.error("Error fetching coordinates from Redis: {}", e.getMessage());
+            logger.error("❌ Error fetching coordinates from Redis: {}", e.getMessage(), e);
         }
 
+        logger.debug("⚠️ Returning cached coordinates: X={}, Y={}, source={}", 
+                   latestCoordinate.getCoordX(), latestCoordinate.getCoordY(), latestCoordinate.getSource());
         return latestCoordinate;
     }
 
@@ -135,7 +179,7 @@ public class CoordinateService {
         
         try {
             // 총 메시지 수
-            Object messageCount = redisTemplate.opsForValue().get("message_count");
+            String messageCount = redisTemplate.opsForValue().get("message_count");
             stats.put("messageCount", messageCount != null ? messageCount : 0);
             
             // 메시지 키 수

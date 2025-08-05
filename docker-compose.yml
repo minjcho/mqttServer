@@ -40,11 +40,11 @@ services:
       timeout: 10s
       retries: 5
 
-  # Python MQTT-Kafka 브릿지
-  mqtt-bridge:
+  # Telegraf MQTT-Kafka 브릿지
+  telegraf:
     build:
-      context: ./mqtt-bridge
-    container_name: mqtt-bridge
+      context: ./telegraf
+    container_name: telegraf-mqtt-bridge
     depends_on:
       kafka:
         condition: service_healthy
