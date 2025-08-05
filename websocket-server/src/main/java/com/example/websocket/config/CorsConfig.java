@@ -16,6 +16,7 @@ public class CorsConfig {
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
         configuration.setAllowCredentials(false); // 명시적으로 false 설정
+        configuration.addExposedHeader("*");
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
