@@ -84,7 +84,7 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    command: ["python", "consumer_fixed.py"]
+    command: ["python", "consumer.py"]
 
   kafka-topics-init:
     image: confluentinc/cp-kafka:7.5.0

@@ -19,11 +19,7 @@ class MQTTKafkaBridge:
         self.mqtt_host = "mosquitto"
         self.mqtt_port = 3123
         self.mqtt_topics = [
-            "sensors/+/coordX",
-            "sensors/+/coordY", 
-            "sensors/+/motorRPM",
             "sensors/+/coordinates",  # 통합 좌표 토픽 추가
-            "test/+"
         ]
         
         # Kafka 설정
