@@ -67,7 +67,60 @@ services:
       - mqtt_network
     command: redis-server --appendonly yes
 
-  # Kafka -> Redis Consumer
+  # Kafka Connect
+  kafka-connect:
+    image: confluentinc/cp-kafka-connect:7.5.0
+    container_name: kafka-connect
+    depends_on:
+      kafka:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - mqtt_network
+    ports:
+      - "8083:8083"
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: kafka:9092
+      CONNECT_REST_ADVERTISED_HOST_NAME: kafka-connect
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: connect-cluster
+      CONNECT_CONFIG_STORAGE_TOPIC: docker-connect-configs
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_FLUSH_INTERVAL_MS: 10000
+      CONNECT_OFFSET_STORAGE_TOPIC: docker-connect-offsets
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_TOPIC: docker-connect-status
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.storage.StringConverter
+      CONNECT_PLUGIN_PATH: "/usr/share/java,/usr/share/confluent-hub-components"
+    volumes:
+      - ./connectors:/usr/share/confluent-hub-components
+    command: 
+      - bash
+      - -c
+      - |
+        echo "Installing Redis connector..."
+        confluent-hub install --no-prompt jcustenborder/kafka-connect-redis:0.0.4
+        echo "Starting Kafka Connect..."
+        /etc/confluent/docker/run
+
+  kafka-topics-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-topics-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    volumes:
+      - ./kafka/scripts:/scripts
+    command: ["/scripts/init_topics.sh"]
+    networks:
+      - mqtt_network
+    restart: "no"
+
+  # Python Kafka-Redis Consumer
   kafka-redis-consumer:
     build:
       context: ./kafka-redis-consumer
@@ -84,20 +137,6 @@ services:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-    command: ["python", "consumer.py"]
-
-  kafka-topics-init:
-    image: confluentinc/cp-kafka:7.5.0
-    container_name: kafka-topics-init
-    depends_on:
-      kafka:
-        condition: service_healthy
-    volumes:
-      - ./kafka/scripts:/scripts
-    command: ["/scripts/init_topics.sh"]
-    networks:
-      - mqtt_network
-    restart: "no"
 
   # WebSocket 좌표 스트리밍 서버
   websocket-server:

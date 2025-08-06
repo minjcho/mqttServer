@@ -34,7 +34,7 @@ def main():
         
         consumer = KafkaConsumer(
             bootstrap_servers=[kafka_servers],
-            auto_offset_reset='latest',
+            auto_offset_reset='earliest',
             enable_auto_commit=False,  # Consumer Group 없이 수동 관리
             value_deserializer=None,  # Raw bytes를 받아서 수동으로 처리
             consumer_timeout_ms=1000  # 1초 타임아웃
@@ -48,9 +48,9 @@ def main():
         ]
         consumer.assign(topic_partitions)
         
-        # 가장 최근 offset으로 이동
+        # 처음부터 읽기 (테스트용)
         for tp in topic_partitions:
-            consumer.seek_to_end(tp)
+            consumer.seek_to_beginning(tp)
         
         logger.info(f"✅ Kafka consumer connected to {kafka_servers} (Consumer Group 없음)")
     except Exception as e:

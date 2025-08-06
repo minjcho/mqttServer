@@ -1,2 +1,171 @@
+# Environment variables
 .env
+.env.local
+.env.*.local
+
+# OS files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Docker
+.docker/
+docker-compose.override.yml
+
+# Logs
+*.log
+logs/
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Java
+*.class
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+build/
+target/
+out/
+.gradle/
+.mvn/
+.settings/
+.project
+.classpath
+*.iws
+*.iml
+*.ipr
+
+# Spring Boot
+HELP.md
+.gradle
+gradle/
+gradlew
+gradlew.bat
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Kafka data
+kafka_data/
+kafka-logs/
+zookeeper/
+
+# Redis data  
+redis_data/
+dump.rdb
+
+# MinIO data
+minio_data/
+.minio/
+
+# Telegraf
+telegraf.db
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Configuration overrides
+*local.conf
+*local.properties
+*local.yml
+*local.yaml
+
+# Secrets and credentials
+secrets/
+credentials/
+.secrets
+.credentials
+*secret*
+*password*
+*passwd*
+
+# Docker volumes data
+volumes/
+data/
+
+# Kafka Connect plugins (downloaded at runtime)
+connectors/confluentinc-kafka-connect-*
+connectors/jcustenborder-kafka-connect-*
+
+# Test output
+test-results/
+test-reports/
+
+# Documentation temp files
+*.aux
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.toc
+
+# TIL and temporary documentation  
+asdf.md

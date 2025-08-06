@@ -70,8 +70,14 @@ redis-logs:
 redis-api-logs:
 	docker compose logs -f redis-api
 
-kafka-redis-consumer-logs:
-	docker compose logs -f kafka-redis-consumer
+kafka-connect-logs:
+	docker compose logs -f kafka-connect
+
+setup-connectors:
+	./setup-connectors.sh
+
+connector-status:
+	curl -s http://localhost:8083/connectors/redis-sink-connector/status | jq
 
 websocket-logs:
 	docker compose logs -f websocket-server
