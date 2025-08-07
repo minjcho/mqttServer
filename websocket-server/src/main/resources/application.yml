@@ -32,3 +32,19 @@ websocket:
   broadcast-interval: 1000
   # Redis에서 읽어올 최대 메시지 수
   max-messages: 10
+
+# MQTT 설정
+mqtt:
+  broker:
+    url: tcp://mosquitto:3123
+  client:
+    id: spring-boot-mqtt-client
+
+# Swagger UI 설정
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
