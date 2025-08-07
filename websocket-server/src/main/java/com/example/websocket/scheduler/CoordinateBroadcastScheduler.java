@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 public class CoordinateBroadcastScheduler {
@@ -49,36 +50,64 @@ public class CoordinateBroadcastScheduler {
         }
 
         try {
-            // Redis에서 최신 좌표 데이터 가져오기
-            CoordinateData coordinates = coordinateService.getLatestCoordinates();
+            // Redis에서 모든 ORIN ID 찾기
+            Set<String> orinKeys = coordinateService.getRedisTemplate().keys("orin:*:latest");
             
-            // 좌표 데이터가 없거나 기본값이면 랜덤 데이터로 대체 (테스트 목적)
-            if (coordinates == null || (coordinates.getCoordX() == 0.0 && coordinates.getCoordY() == 0.0 && "system".equals(coordinates.getSource()))) {
-                coordinates = coordinateService.generateRandomCoordinates();
-                logger.debug("Using random coordinates as no data available from Redis");
+            if (orinKeys != null && !orinKeys.isEmpty()) {
+                // 각 ORIN ID별로 데이터를 브로드캐스트
+                for (String orinKey : orinKeys) {
+                    // orin:ORIN001:latest -> ORIN001
+                    String orinId = orinKey.split(":")[1];
+                    
+                    CoordinateData coordinates = coordinateService.getLatestCoordinatesForOrin(orinId);
+                    
+                    if (coordinates != null) {
+                        // 브로드캐스트용 메시지 생성
+                        Map<String, Object> message = new HashMap<>();
+                        message.put("type", "coordinates");
+                        message.put("orinId", orinId);
+                        message.put("data", coordinates);
+                        message.put("timestamp", System.currentTimeMillis());
+                        message.put("activeClients", activeSessionCount);
+                        message.put("messageNumber", ++messagesSent);
+
+                        // JSON으로 변환하여 해당 ORIN ID를 구독하는 세션들에게만 브로드캐스트
+                        String jsonMessage = objectMapper.writeValueAsString(message);
+                        webSocketHandler.broadcastCoordinatesForOrin(orinId, jsonMessage);
+
+                        logger.debug("✅ Broadcasted ORIN {} coordinates: X={}, Y={}", 
+                                   orinId, coordinates.getCoordX(), coordinates.getCoordY());
+                    }
+                }
+                
+                // 로깅 (5초마다 한 번씩만)
+                long currentTime = System.currentTimeMillis();
+                if (currentTime - lastBroadcastTime >= 5000) {
+                    logger.info("Broadcasted coordinates for {} ORIN IDs to {} clients, Messages sent: {}", 
+                              orinKeys.size(), activeSessionCount, messagesSent);
+                    lastBroadcastTime = currentTime;
+                }
             } else {
-                logger.debug("✅ Using Redis coordinates: X={}, Y={}, source={}", 
-                           coordinates.getCoordX(), coordinates.getCoordY(), coordinates.getSource());
-            }
+                // ORIN 데이터가 없으면 기존 로직으로 폴백
+                CoordinateData coordinates = coordinateService.getLatestCoordinates();
+                
+                if (coordinates == null || (coordinates.getCoordX() == 0.0 && coordinates.getCoordY() == 0.0 && "system".equals(coordinates.getSource()))) {
+                    coordinates = coordinateService.generateRandomCoordinates();
+                    logger.debug("Using random coordinates as no ORIN data available from Redis");
+                }
 
-            // 브로드캐스트용 메시지 생성
-            Map<String, Object> message = new HashMap<>();
-            message.put("type", "coordinates");
-            message.put("data", coordinates);
-            message.put("timestamp", System.currentTimeMillis());
-            message.put("activeClients", activeSessionCount);
-            message.put("messageNumber", ++messagesSent);
+                Map<String, Object> message = new HashMap<>();
+                message.put("type", "coordinates");
+                message.put("data", coordinates);
+                message.put("timestamp", System.currentTimeMillis());
+                message.put("activeClients", activeSessionCount);
+                message.put("messageNumber", ++messagesSent);
 
-            // JSON으로 변환하여 브로드캐스트
-            String jsonMessage = objectMapper.writeValueAsString(message);
-            webSocketHandler.broadcastCoordinates(jsonMessage);
-
-            // 로깅 (5초마다 한 번씩만)
-            long currentTime = System.currentTimeMillis();
-            if (currentTime - lastBroadcastTime >= 5000) {
-                logger.info("Broadcasted coordinates to {} clients - X: {}, Y: {}, Messages sent: {}", 
-                          activeSessionCount, coordinates.getCoordX(), coordinates.getCoordY(), messagesSent);
-                lastBroadcastTime = currentTime;
+                String jsonMessage = objectMapper.writeValueAsString(message);
+                webSocketHandler.broadcastCoordinates(jsonMessage);
+                
+                logger.debug("✅ Broadcasted fallback coordinates: X={}, Y={}", 
+                           coordinates.getCoordX(), coordinates.getCoordY());
             }
 
         } catch (Exception e) {

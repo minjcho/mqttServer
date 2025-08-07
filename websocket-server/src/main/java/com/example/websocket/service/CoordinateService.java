@@ -31,7 +31,59 @@ public class CoordinateService {
     }
 
     /**
-     * Redis에서 최신 좌표 데이터를 가져와서 파싱
+     * 특정 ORIN ID의 최신 좌표 데이터를 가져와서 파싱
+     */
+    public CoordinateData getLatestCoordinatesForOrin(String orinId) {
+        try {
+            String orinKey = "orin:" + orinId + ":latest";
+            
+            // Redis에서 ORIN별 데이터 조회
+            Map<Object, Object> rawData = redisTemplate.opsForHash().entries(orinKey);
+            
+            if (rawData == null || rawData.isEmpty()) {
+                logger.debug("No data found for ORIN ID: {}", orinId);
+                return null;
+            }
+
+            logger.debug("Retrieved ORIN {} data from Redis: {}", orinId, rawData);
+            
+            // Object를 String으로 변환
+            Map<String, String> orinData = new HashMap<>();
+            for (Map.Entry<Object, Object> entry : rawData.entrySet()) {
+                orinData.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
+            }
+            
+            if (!orinData.containsKey("data")) {
+                logger.debug("No 'data' field found for ORIN ID: {}. Available fields: {}", orinId, orinData.keySet());
+                return null;
+            }
+
+            String dataJson = orinData.get("data");
+            String timestamp = orinData.getOrDefault("timestamp", "");
+            
+            // JSON 파싱
+            JsonNode dataNode = objectMapper.readTree(dataJson);
+            
+            if (dataNode.has("coordX") && dataNode.has("coordY")) {
+                Double coordX = dataNode.get("coordX").asDouble();
+                Double coordY = dataNode.get("coordY").asDouble();
+                
+                CoordinateData coordinate = new CoordinateData(coordX, coordY, timestamp, "orin:" + orinId);
+                logger.debug("Successfully parsed coordinates for ORIN {}: X={}, Y={}", orinId, coordX, coordY);
+                return coordinate;
+            } else {
+                logger.debug("No coordX/coordY found in data for ORIN ID: {}", orinId);
+            }
+
+        } catch (Exception e) {
+            logger.error("Error fetching coordinates for ORIN ID {}: {}", orinId, e.getMessage(), e);
+        }
+
+        return null;
+    }
+
+    /**
+     * Redis에서 최신 좌표 데이터를 가져와서 파싱 (기존 호환성)
      */
     public CoordinateData getLatestCoordinates() {
         try {
@@ -195,5 +247,12 @@ public class CoordinateService {
         }
         
         return stats;
+    }
+
+    /**
+     * Redis Template getter for scheduler access
+     */
+    public StringRedisTemplate getRedisTemplate() {
+        return redisTemplate;
     }
 }

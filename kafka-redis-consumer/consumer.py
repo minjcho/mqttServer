@@ -7,6 +7,7 @@ import json
 import os
 import time
 import logging
+import re
 from datetime import datetime
 from kafka import KafkaConsumer
 import redis
@@ -17,6 +18,17 @@ logging.basicConfig(
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def extract_orin_id(mqtt_topic):
+    """MQTT 토픽에서 ORIN ID 추출 (예: sensors/ORIN001/coordinates -> ORIN001)"""
+    if not mqtt_topic:
+        return None
+    
+    # sensors/ORIN001/coordinates 패턴에서 ORIN ID 추출
+    match = re.search(r'sensors/([^/]+)/', mqtt_topic)
+    if match:
+        return match.group(1)
+    return None
 
 def main():
     logger.info("🚀 Starting Simplified Kafka-Redis Consumer")
@@ -40,17 +52,15 @@ def main():
             consumer_timeout_ms=1000  # 1초 타임아웃
         )
         
-        # 수동으로 모든 파티션에 할당
+        # 수동으로 모든 파티션에 할당 (100개 파티션)
         topic_partitions = [
-            TopicPartition('mqtt-messages', 0),
-            TopicPartition('mqtt-messages', 1),
-            TopicPartition('mqtt-messages', 2)
+            TopicPartition('mqtt-messages', i) for i in range(100)
         ]
         consumer.assign(topic_partitions)
         
-        # 처음부터 읽기 (테스트용)
+        # 최신 메시지부터 읽기 (실시간 성능 우선)
         for tp in topic_partitions:
-            consumer.seek_to_beginning(tp)
+            consumer.seek_to_end(tp)
         
         logger.info(f"✅ Kafka consumer connected to {kafka_servers} (Consumer Group 없음)")
     except Exception as e:
@@ -102,9 +112,16 @@ def main():
                                 try:
                                     message_data = json.loads(message_str)
                                     logger.info(f"   Parsed JSON: {message_data}")
+                                    
+                                    # MQTT 토픽에서 ORIN ID 추출 (Telegraf 포맷)
+                                    mqtt_topic = message_data.get('tags', {}).get('mqtt_topic', '')
+                                    orin_id = extract_orin_id(mqtt_topic)
+                                    logger.info(f"   MQTT Topic: {mqtt_topic}, ORIN ID: {orin_id}")
+                                    
                                 except:
                                     logger.info(f"   Not JSON, treating as plain text")
                                     message_data = {"raw_message": message_str}
+                                    orin_id = None
                                 
                             except Exception as e:
                                 logger.error(f"❌ Failed to decode message: {e}")
@@ -113,6 +130,7 @@ def main():
                             
                             # Redis에 저장
                             try:
+                                # 기본 메시지 저장
                                 key = f"message:{message.topic}:{message.partition}:{message.offset}"
                                 data = {
                                     "topic": message.topic,
@@ -123,8 +141,30 @@ def main():
                                 }
                                 redis_client.hset(key, mapping=data)
                                 
+                                # ORIN ID별 최신 데이터 저장
+                                if orin_id and isinstance(message_data, dict) and 'fields' in message_data:
+                                    orin_key = f"orin:{orin_id}:latest"
+                                    
+                                    # fields.value에서 실제 좌표 데이터 추출
+                                    try:
+                                        value_json = message_data.get('fields', {}).get('value', '{}')
+                                        coord_data = json.loads(value_json)
+                                        
+                                        orin_data = {
+                                            "orin_id": orin_id,
+                                            "data": json.dumps(coord_data),  # 좌표 데이터만 저장
+                                            "timestamp": datetime.now().isoformat(),
+                                            "mqtt_topic": mqtt_topic
+                                        }
+                                        redis_client.hset(orin_key, mapping=orin_data)
+                                        logger.info(f"✅ Saved ORIN data to Redis with key: {orin_key} - X={coord_data.get('coordX')}, Y={coord_data.get('coordY')}")
+                                    except Exception as e:
+                                        logger.error(f"❌ Failed to parse coordinate data for {orin_id}: {e}")
+                                
                                 # 카운터 증가
                                 redis_client.incr("message_count")
+                                if orin_id:
+                                    redis_client.incr(f"orin:{orin_id}:count")
                                 
                                 logger.info(f"✅ Saved to Redis with key: {key}")
                                 

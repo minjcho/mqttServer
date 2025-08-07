@@ -17,7 +17,7 @@ echo "Creating mqtt-messages topic..."
 kafka-topics --bootstrap-server kafka:9092 \
     --create \
     --topic mqtt-messages \
-    --partitions 3 \
+    --partitions 100 \
     --replication-factor 1 \
     --if-not-exists
 
