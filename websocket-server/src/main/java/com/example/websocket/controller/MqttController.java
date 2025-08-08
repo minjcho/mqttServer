@@ -192,6 +192,12 @@ public class MqttController {
             @Parameter(description = "The origin ID of the IoT device", required = true, example = "device123")
             @PathVariable String orinId,
             @Parameter(description = "The command to send", required = true)
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                content = @Content(
+                    mediaType = "application/json",
+                    schema = @Schema(example = "{ \"command\": \"string\" }")
+                )
+            )
             @RequestBody Map<String, String> request) {
         Map<String, Object> response = new HashMap<>();
         

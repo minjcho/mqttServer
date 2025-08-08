@@ -73,9 +73,6 @@ redis-api-logs:
 kafka-connect-logs:
 	docker compose logs -f kafka-connect
 
-setup-connectors:
-	./setup-connectors.sh
-
 connector-status:
 	curl -s http://localhost:8083/connectors/redis-sink-connector/status | jq
 
