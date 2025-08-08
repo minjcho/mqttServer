@@ -16,21 +16,32 @@ public class MqttService {
     @Autowired
     private MqttClient mqttClient;
     
-    public void sendFollowingCommand(String orinId) {
+    public void sendTrackingCommand(String orinId) {
+        sendCommand(orinId, "tracking");
+    }
+    
+    public void sendSlamCommand(String orinId) {
+        sendCommand(orinId, "slam");
+    }
+    
+    public void sendNoneCommand(String orinId) {
+        sendCommand(orinId, "none");
+    }
+    
+    private void sendCommand(String orinId, String command) {
         String topic = String.format("commands/%s", orinId);
-        String message = "following";
         
         try {
             if (!mqttClient.isConnected()) {
                 mqttClient.reconnect();
             }
             
-            MqttMessage mqttMessage = new MqttMessage(message.getBytes());
+            MqttMessage mqttMessage = new MqttMessage(command.getBytes());
             mqttMessage.setQos(1);
             mqttMessage.setRetained(false);
             
             mqttClient.publish(topic, mqttMessage);
-            logger.info("Successfully sent following command to topic: {}", topic);
+            logger.info("Successfully sent {} command to topic: {}", command, topic);
             
         } catch (MqttException e) {
             logger.error("Failed to send MQTT message to topic: {}", topic, e);
