@@ -4,6 +4,7 @@ services:
   mosquitto:
     build:
       context: ./mosquitto
+    container_name: mosquitto
     ports:
       - "3123:3123"
     networks:
