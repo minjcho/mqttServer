@@ -84,6 +84,10 @@ class MQTTKafkaBridge:
             payload = msg.payload.decode('utf-8')
             timestamp = int(time.time() * 1000)
             
+            # 토픽에서 디바이스 ID 추출 (예: sensors/device123/coordinates -> device123)
+            topic_parts = topic.split('/')
+            device_id = topic_parts[1] if len(topic_parts) > 1 else topic
+            
             # Kafka로 전송할 메시지 구성
             kafka_message = {
                 "topic": topic,
@@ -92,12 +96,12 @@ class MQTTKafkaBridge:
                 "qos": msg.qos
             }
             
-            logger.info(f"🚀 Sending to Kafka topic '{self.kafka_topic}': {kafka_message}")
+            logger.info(f"🚀 Sending to Kafka topic '{self.kafka_topic}' with key '{device_id}': {kafka_message}")
             
-            # Kafka로 전송
+            # Kafka로 전송 (device_id를 파티션 키로 사용)
             future = self.kafka_producer.send(
                 self.kafka_topic,
-                key=topic,
+                key=device_id,
                 value=kafka_message
             )
             
