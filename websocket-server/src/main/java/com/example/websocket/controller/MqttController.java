@@ -156,4 +156,66 @@ public class MqttController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
         }
     }
+    
+    @Operation(
+        summary = "Send any command to IoT device",
+        description = "Sends a custom command to the specified IoT device via MQTT"
+    )
+    @ApiResponses(value = {
+        @ApiResponse(
+            responseCode = "200",
+            description = "Command sent successfully",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Map.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "400",
+            description = "Invalid command",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Map.class)
+            )
+        ),
+        @ApiResponse(
+            responseCode = "500",
+            description = "Failed to send command",
+            content = @Content(
+                mediaType = "application/json",
+                schema = @Schema(implementation = Map.class)
+            )
+        )
+    })
+    @PostMapping("/commands/{orinId}")
+    public ResponseEntity<Map<String, Object>> sendCommand(
+            @Parameter(description = "The origin ID of the IoT device", required = true, example = "device123")
+            @PathVariable String orinId,
+            @Parameter(description = "The command to send", required = true)
+            @RequestBody Map<String, String> request) {
+        Map<String, Object> response = new HashMap<>();
+        
+        String command = request.get("command");
+        if (command == null || command.trim().isEmpty()) {
+            response.put("success", false);
+            response.put("message", "Command is required");
+            response.put("orinId", orinId);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
+        }
+        
+        try {
+            mqttService.sendCustomCommand(orinId, command);
+            response.put("success", true);
+            response.put("message", "Command sent successfully");
+            response.put("orinId", orinId);
+            response.put("command", command);
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            response.put("success", false);
+            response.put("message", "Failed to send command: " + e.getMessage());
+            response.put("orinId", orinId);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+        }
+    }
 }

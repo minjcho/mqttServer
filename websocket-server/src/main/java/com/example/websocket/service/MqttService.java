@@ -28,6 +28,10 @@ public class MqttService {
         sendCommand(orinId, "none");
     }
     
+    public void sendCustomCommand(String orinId, String command) {
+        sendCommand(orinId, command);
+    }
+    
     private void sendCommand(String orinId, String command) {
         String topic = String.format("commands/%s", orinId);
         
