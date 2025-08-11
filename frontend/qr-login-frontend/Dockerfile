@@ -7,8 +7,8 @@ WORKDIR /app
 # package.json과 package-lock.json 복사
 COPY package*.json ./
 
-# 의존성 설치
-RUN npm ci --only=production
+# 의존성 설치 (dev dependencies도 포함 - 빌드에 필요)
+RUN npm ci
 
 # 소스 코드 복사
 COPY . .
