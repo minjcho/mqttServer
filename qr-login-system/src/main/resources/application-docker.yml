@@ -1,0 +1,120 @@
+spring:
+  application:
+    name: qr-login-system-docker
+  
+  # PostgreSQL Database for Docker
+  datasource:
+    url: jdbc:postgresql://${DATABASE_HOST:db}:${DATABASE_PORT:5433}/${DATABASE_NAME:qrlogin}
+    driver-class-name: org.postgresql.Driver
+    username: ${DATABASE_USER:qrlogin}
+    password: ${DATABASE_PASSWORD:qrlogin123}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  
+  # JPA/Hibernate settings for PostgreSQL
+  jpa:
+    hibernate:
+      ddl-auto: validate  # Use Flyway for schema management
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+    defer-datasource-initialization: false
+  
+  # Flyway settings
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    
+  redis:
+    host: ${SPRING_REDIS_HOST:redis}
+    port: ${SPRING_REDIS_PORT:6379}
+    timeout: 6000ms
+    lettuce:
+      pool:
+        max-active: 8
+        max-idle: 8
+        min-idle: 0
+        max-wait: -1ms
+
+  security:
+    user:
+      name: admin
+      password: admin
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+
+# Docker 환경에서는 더 관대한 CORS 설정
+cors:
+  allowed-origins: 
+    - "http://localhost:3000"
+    - "http://localhost:8000"
+    - "http://localhost:8080"
+    - "http://localhost:8090"
+    - "http://127.0.0.1:3000"
+    - "http://127.0.0.1:8000"
+    - "http://127.0.0.1:8080"
+    - "http://127.0.0.1:8090"
+  allowed-methods: 
+    - "GET"
+    - "POST"
+    - "PUT" 
+    - "DELETE"
+    - "OPTIONS"
+  allowed-headers: "*"
+  allow-credentials: false
+  max-age: 3600
+
+jwt:
+  secret: "ThisIsAVeryLongSecretKeyForJWTSigningAndItShouldBeKeptSecureAndNotSharedWithAnyone12345678901234567890"
+  access-token:
+    expiration: 900000    # 15 minutes in milliseconds
+  refresh-token:
+    expiration: 604800000  # 7 days in milliseconds
+  issuer: qr-login-system-docker
+
+qr:
+  challenge:
+    ttl: 120  # seconds
+  otc:
+    ttl: 60   # seconds
+  image:
+    width: 300
+    height: 300
+
+# Docker 환경용 로깅 설정
+logging:
+  level:
+    root: INFO
+    com.example.qrlogin: INFO
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: /app/logs/qr-login-system.log
+    max-size: 100MB
+    max-history: 10
+
+# Actuator for health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    redis:
+      enabled: true

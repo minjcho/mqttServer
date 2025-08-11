@@ -1,0 +1,42 @@
+# Build outputs
+build/
+target/
+out/
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Test outputs
+*.log
+*.tmp
+
+# Gradle cache (handled by multi-stage build)
+.gradle/
+
+# Node modules (if any)
+node_modules/
+
+# Documentation
+README.md
+docs/
+
+# Local config files
+application-local.yml
+application-dev.yml

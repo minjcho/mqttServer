@@ -95,6 +95,7 @@ gradlew.bat
 # IDE
 .idea/
 .vscode/
+.claude/
 *.swp
 *.swo
 *~

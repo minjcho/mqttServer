@@ -1,0 +1,86 @@
+networks:
+  qr-net:
+    driver: bridge
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: qr-postgres
+    ports:
+      - "5433:5433"
+    environment:
+      POSTGRES_DB: qrlogin
+      POSTGRES_USER: qrlogin
+      POSTGRES_PASSWORD: qrlogin123
+      PGDATA: /var/lib/postgresql/data/pgdata
+      PGPORT: 5433
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/pgdata
+    networks:
+      - qr-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U qrlogin -d qrlogin -p 5433"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    command: ["postgres", "-p", "5433"]
+
+  redis:
+    image: redis:7-alpine
+    container_name: qr-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - qr-net
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+  app:
+    build: .
+    container_name: qr-login-app
+    ports:
+      - "8090:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - DATABASE_HOST=db
+      - DATABASE_PORT=5433
+      - DATABASE_NAME=qrlogin
+      - DATABASE_USER=qrlogin
+      - DATABASE_PASSWORD=qrlogin123
+      - SPRING_REDIS_HOST=redis
+      - SPRING_REDIS_PORT=6379
+      - JAVA_OPTS=-Xmx512m -Xms256m -Djava.security.egd=file:/dev/./urandom
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - qr-net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+    volumes:
+      - app_logs:/app/logs
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  app_logs:
+    driver: local
