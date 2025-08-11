@@ -22,14 +22,16 @@ FROM nginx:alpine
 # 빌드된 파일을 nginx로 복사
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# SSL 인증서 복사
-COPY certs /etc/nginx/certs
-
-# nginx SSL 설정 파일 복사
+# nginx 설정 파일들 복사
 COPY nginx-ssl.conf /etc/nginx/conf.d/default.conf
+COPY nginx-http.conf /etc/nginx/conf.d/http.conf
+
+# 시작 스크립트 복사
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 # 포트 노출
 EXPOSE 80 443
 
-# nginx 실행
-CMD ["nginx", "-g", "daemon off;"]
+# 시작 스크립트 실행
+ENTRYPOINT ["/docker-entrypoint.sh"]
