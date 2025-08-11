@@ -117,6 +117,17 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
 
+  # QR Login Frontend
+  frontend:
+    build:
+      context: ./frontend/qr-login-frontend
+    container_name: qr-login-frontend
+    ports:
+      - "3000:80"
+    restart: unless-stopped
+    networks:
+      - mqtt_network
+
 volumes:
   kafka_data:
   redis_data:
