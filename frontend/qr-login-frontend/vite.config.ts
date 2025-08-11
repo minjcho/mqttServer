@@ -8,10 +8,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 3000,
-    https: {
+    https: fs.existsSync('./certs/cert.pem') && fs.existsSync('./certs/key.pem') ? {
       key: fs.readFileSync('./certs/key.pem'),
       cert: fs.readFileSync('./certs/cert.pem')
-    },
+    } : undefined,
     proxy: {
       '/api': {
         target: 'http://3.36.126.83:8090',
