@@ -21,6 +21,11 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess }) => {
 
   const initializeScanner = async () => {
     try {
+      // Check if mediaDevices is available
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera API not available. Please use HTTPS or follow the browser setup guide.')
+      }
+      
       // Request camera permission
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -41,7 +46,13 @@ const QrScanner: React.FC<QrScannerProps> = ({ onScanSuccess }) => {
       }
     } catch (err) {
       console.error('Error accessing camera:', err)
-      setError('Failed to access camera. Please ensure camera permissions are granted.')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to access camera'
+      setError(errorMessage)
+      
+      // Show specific help for HTTPS requirement
+      if (!navigator.mediaDevices) {
+        setError('Camera access requires HTTPS. Please use https:// or set up Chrome flags for your IP address.')
+      }
     }
   }
 
