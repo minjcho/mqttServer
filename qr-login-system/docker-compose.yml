@@ -31,7 +31,7 @@ services:
     image: redis:7-alpine
     container_name: qr-redis
     ports:
-      - "6379:6379"
+      - "6378:6378"
     volumes:
       - redis_data:/data
     networks:
@@ -58,7 +58,7 @@ services:
       - DATABASE_USER=qrlogin
       - DATABASE_PASSWORD=qrlogin123
       - SPRING_REDIS_HOST=redis
-      - SPRING_REDIS_PORT=6379
+      - SPRING_REDIS_PORT=6378
       - JAVA_OPTS=-Xmx512m -Xms256m -Djava.security.egd=file:/dev/./urandom
     depends_on:
       db:

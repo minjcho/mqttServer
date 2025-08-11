@@ -35,7 +35,7 @@ spring:
     
   redis:
     host: ${SPRING_REDIS_HOST:redis}
-    port: ${SPRING_REDIS_PORT:6379}
+    port: ${SPRING_REDIS_PORT:6378}
     timeout: 6000ms
     lettuce:
       pool:
