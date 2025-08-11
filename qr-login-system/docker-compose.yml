@@ -36,9 +36,9 @@ services:
       - redis_data:/data
     networks:
       - qr-net
-    command: redis-server --appendonly yes
+    command: redis-server --port 6378 --appendonly yes
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-p", "6378", "ping"]
       interval: 10s
       timeout: 3s
       retries: 3
