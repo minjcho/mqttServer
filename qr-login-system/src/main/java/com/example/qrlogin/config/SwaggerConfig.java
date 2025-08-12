@@ -30,9 +30,9 @@ public class SwaggerConfig {
                     .name("MIT License")
                     .url("https://opensource.org/licenses/MIT")))
             .servers(List.of(
-                new Server().url("http://3.36.126.83:8090").description("AWS 배포 서버"),
-                new Server().url("http://localhost:8090").description("로컬 개발 서버"),
-                new Server().url("https://api.qrlogin.example.com").description("운영 서버")
+                new Server().url("https://a205.duckdns.org").description("AWS HTTPS 서버"),
+                new Server().url("http://3.36.126.83:8090").description("AWS HTTP 서버"),
+                new Server().url("http://localhost:8090").description("로컬 개발 서버")
             ))
             .components(new Components()
                 .addSecuritySchemes("bearerAuth", new SecurityScheme()

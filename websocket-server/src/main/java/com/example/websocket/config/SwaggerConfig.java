@@ -23,9 +23,9 @@ public class SwaggerConfig {
                                 .name("API Support")
                                 .email("support@example.com")))
                 .servers(List.of(
-                        new Server().url("http://3.36.126.83:8081").description("AWS server"),
-                        new Server().url("http://localhost:8081").description("Local server"),
-                        new Server().url("http://i13a205.p.ssafy.io:8081").description("SSAFY server")
+                        new Server().url("https://a205.duckdns.org").description("AWS HTTPS server"),
+                        new Server().url("http://3.36.126.83:8081").description("AWS HTTP server"),
+                        new Server().url("http://localhost:8081").description("Local server")
                 ));
     }
 }
