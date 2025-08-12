@@ -23,4 +23,8 @@ public class SignupRequest {
     @Size(min = 8, message = "Password must be at least 8 characters long")
     @Schema(description = "사용자 비밀번호 (최소 8자)", example = "password123", required = true)
     private String password;
+    
+    @Size(max = 50, message = "OrinId must not exceed 50 characters")
+    @Schema(description = "Orin 디바이스 ID (선택사항)", example = "orin-device-001", required = false)
+    private String orinId;
 }

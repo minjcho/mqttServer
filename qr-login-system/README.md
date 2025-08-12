@@ -62,7 +62,7 @@ cd qr-login-system
 docker compose up -d
 
 # 애플리케이션 상태 확인
-curl http://localhost:8080/actuator/health
+curl http://localhost:8090/actuator/health
 ```
 
 ### 로컬 개발 환경

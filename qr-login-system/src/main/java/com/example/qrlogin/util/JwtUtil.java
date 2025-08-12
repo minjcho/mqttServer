@@ -57,6 +57,16 @@ public class JwtUtil {
         return createToken(claims, userId, accessTokenExpiration);
     }
     
+    public String generateAccessToken(String userId, String email, Set<String> roles, String orinId) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId", userId);
+        claims.put("email", email);
+        claims.put("roles", roles);
+        claims.put("orinId", orinId);
+        claims.put("tokenType", "ACCESS");
+        return createToken(claims, userId, accessTokenExpiration);
+    }
+    
     public String generateRefreshToken(String userId) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
@@ -103,6 +113,11 @@ public class JwtUtil {
     public String extractTokenId(String token) {
         Claims claims = extractAllClaims(token);
         return claims.get("tokenId", String.class);
+    }
+    
+    public String extractOrinId(String token) {
+        Claims claims = extractAllClaims(token);
+        return claims.get("orinId", String.class);
     }
     
     public Date extractExpiration(String token) {

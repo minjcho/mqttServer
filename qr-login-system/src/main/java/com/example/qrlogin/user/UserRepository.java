@@ -19,4 +19,13 @@ public interface UserRepository extends JpaRepository<User, Long> {
     
     @Query("SELECT u FROM User u JOIN FETCH u.roles WHERE u.id = :id AND u.enabled = true")
     Optional<User> findByIdAndEnabledTrue(@Param("id") Long id);
+    
+    Optional<User> findByOrinId(String orinId);
+    
+    @Query("SELECT u FROM User u JOIN FETCH u.roles WHERE u.orinId = :orinId AND u.enabled = true")
+    Optional<User> findByOrinIdAndEnabledTrue(@Param("orinId") String orinId);
+    
+    boolean existsByOrinId(String orinId);
+    
+    boolean existsByOrinIdAndIdNot(String orinId, Long id);
 }

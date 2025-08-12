@@ -117,19 +117,19 @@ services:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
 
-  # QR Login Frontend
-  frontend:
-    build:
-      context: ./frontend/qr-login-frontend
-    container_name: qr-login-frontend
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./frontend/qr-login-frontend/certs:/etc/nginx/certs:ro
-    restart: unless-stopped
-    networks:
-      - mqtt_network
+  # QR Login Frontend - 주석 처리 (npm run dev로 별도 실행)
+  # frontend:
+  #   build:
+  #     context: ./frontend/qr-login-frontend
+  #   container_name: qr-login-frontend
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - ./frontend/qr-login-frontend/certs:/etc/nginx/certs:ro
+  #   restart: unless-stopped
+  #   networks:
+  #     - mqtt_network
 
 volumes:
   kafka_data:

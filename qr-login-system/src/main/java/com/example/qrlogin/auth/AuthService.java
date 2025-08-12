@@ -36,9 +36,19 @@ public class AuthService {
         
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         
+        // Check if orinId is provided and available
+        if (request.getOrinId() != null && !request.getOrinId().isEmpty()) {
+            if (!userRepository.existsByOrinId(request.getOrinId())) {
+                // OrinId is available
+            } else {
+                throw new IllegalArgumentException("OrinId is already in use");
+            }
+        }
+        
         User user = User.builder()
             .email(request.getEmail())
             .passwordHash(hashedPassword)
+            .orinId(request.getOrinId())
             .roles(Set.of(Role.USER))
             .enabled(true)
             .build();
@@ -89,7 +99,8 @@ public class AuthService {
         return jwtUtil.generateAccessToken(
             user.getId().toString(),
             user.getEmail(),
-            roleNames
+            roleNames,
+            user.getOrinId()
         );
     }
 }

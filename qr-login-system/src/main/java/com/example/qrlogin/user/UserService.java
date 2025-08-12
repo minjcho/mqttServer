@@ -31,4 +31,28 @@ public class UserService {
         return userRepository.findByEmailAndEnabledTrue(email)
             .orElseThrow(() -> new UsernameNotFoundException("User not found"));
     }
+    
+    @Transactional
+    public User updateOrinId(Long userId, String orinId) {
+        User user = getUserById(userId);
+        
+        // Check if orinId is already in use by another user
+        if (orinId != null && userRepository.existsByOrinIdAndIdNot(orinId, userId)) {
+            throw new IllegalArgumentException("OrinId is already in use");
+        }
+        
+        user.setOrinId(orinId);
+        return userRepository.save(user);
+    }
+    
+    @Transactional(readOnly = true)
+    public User getUserByOrinId(String orinId) {
+        return userRepository.findByOrinIdAndEnabledTrue(orinId)
+            .orElseThrow(() -> new UsernameNotFoundException("User not found with orinId: " + orinId));
+    }
+    
+    @Transactional(readOnly = true)
+    public boolean isOrinIdAvailable(String orinId) {
+        return !userRepository.existsByOrinId(orinId);
+    }
 }

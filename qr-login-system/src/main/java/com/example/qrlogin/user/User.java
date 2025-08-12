@@ -46,6 +46,9 @@ public class User {
     @Column(nullable = false)
     private Boolean enabled = true;
     
+    @Column(unique = true, length = 50, name = "orin_id")
+    private String orinId;
+    
     @CreatedDate
     @Column(nullable = false, updatable = false, name = "created_at")
     private LocalDateTime createdAt;
