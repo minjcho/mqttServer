@@ -12,10 +12,14 @@ public class CorsConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.addAllowedOriginPattern("*"); // allowedOriginPatterns 사용
+        configuration.addAllowedOrigin("http://localhost:3000");
+        configuration.addAllowedOrigin("http://localhost:5173");
+        configuration.addAllowedOrigin("https://a205test.vercel.app");
+        configuration.addAllowedOrigin("https://a205.duckdns.org");
+        configuration.addAllowedOriginPattern("https://*.vercel.app");
         configuration.addAllowedMethod("*");
         configuration.addAllowedHeader("*");
-        configuration.setAllowCredentials(false); // 명시적으로 false 설정
+        configuration.setAllowCredentials(true);
         configuration.addExposedHeader("*");
         
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
