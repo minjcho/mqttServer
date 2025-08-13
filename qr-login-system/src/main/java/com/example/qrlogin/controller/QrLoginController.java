@@ -70,11 +70,14 @@ public class QrLoginController {
     public ResponseEntity<QrApproveResponse> approveQrLogin(
         @Parameter(description = "QR 승인 요청 정보", required = true)
         @Valid @RequestBody QrApproveRequest request) {
+        log.info("QR approve request received - challengeId: {}, nonce: {}", 
+            request.getChallengeId(), request.getNonce());
         try {
             QrApproveResponse response = qrLoginService.approveQrLogin(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            log.error("Failed to approve QR login", e);
+            log.error("Failed to approve QR login - challengeId: {}, nonce: {}", 
+                request.getChallengeId(), request.getNonce(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(QrApproveResponse.builder()
                     .message(e.getMessage())

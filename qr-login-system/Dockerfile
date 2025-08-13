@@ -1,11 +1,12 @@
 # Multi-stage build for Spring Boot QR Login System
-FROM eclipse-temurin:17-jdk-alpine AS builder
-
-# Install Gradle
-RUN apk add --no-cache gradle
+FROM eclipse-temurin:17-jdk AS builder
 
 # Set working directory
 WORKDIR /app
+
+# Copy Gradle wrapper
+COPY gradlew .
+COPY gradle gradle
 
 # Copy build files first (for caching)
 COPY build.gradle .
@@ -14,18 +15,21 @@ COPY settings.gradle .
 # Copy source code
 COPY src src
 
+# Make gradlew executable
+RUN chmod +x gradlew
+
 # Build application (skip tests for faster build)
-RUN gradle build -x test --no-daemon
+RUN ./gradlew build -x test --no-daemon
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-alpine
+FROM eclipse-temurin:17-jre
 
 # Set working directory
 WORKDIR /app
 
 # Create non-root user for security
-RUN addgroup -g 1001 -S spring && \
-    adduser -u 1001 -S spring -G spring
+RUN groupadd -g 1001 spring && \
+    useradd -u 1001 -g spring spring
 
 # Set environment variables
 ENV SPRING_PROFILES_ACTIVE=docker
