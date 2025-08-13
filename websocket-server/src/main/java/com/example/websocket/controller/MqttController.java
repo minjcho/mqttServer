@@ -18,7 +18,6 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/api/mqtt")
-@CrossOrigin(origins = "*")
 @Tag(name = "MQTT Controller", description = "APIs for sending MQTT commands to IoT devices")
 public class MqttController {
     
