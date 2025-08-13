@@ -10,8 +10,9 @@ QR Login System은 모바일 앱에서 QR 코드를 스캔하여 데스크톱 �
 
 - **🔐 QR 기반 로그인**: 모바일 앱으로 QR 코드 스캔하여 데스크톱 로그인
 - **⚡ 실시간 상태 업데이트**: SSE(Server-Sent Events)를 통한 실시간 알림  
-- **🛡️ JWT 인증 시스템**: Access/Refresh Token 패턴 + 토큰 회전
-- **👤 사용자 관리**: 회원가입/로그인/역할 기반 인증
+- **🛡️ JWT 인증 시스템**: Access/Refresh Token 패턴 + 토큰 회전(Rotation)
+- **🆔 OrinId 관리**: 사용자별 고유 식별자 관리 시스템
+- **👤 사용자 관리**: 회원가입/로그인/역할 기반 인증(RBAC)
 - **📱 RESTful API**: 완전한 REST API 지원
 - **📚 API 문서화**: Swagger/OpenAPI 3.0 통합
 - **🐳 Docker 지원**: 완전한 컨테이너화 환경
@@ -28,15 +29,15 @@ sequenceDiagram
 
     D->>S: POST /api/qr/init
     S->>R: Store QR Challenge (TTL: 120s)
-    S->>D: QR Code (PNG)
+    S->>D: QR Code (PNG) + challengeId
     
     D->>S: GET /api/qr/stream/{challengeId}
     Note over D,S: SSE 연결 유지
     
     M->>S: POST /api/qr/approve (with JWT)
-    S->>R: Update Challenge Status
-    S->>D: SSE Event: APPROVED
-    S->>M: Return OTC
+    S->>R: Update Challenge Status + Generate OTC
+    S->>D: SSE Event: APPROVED + OTC
+    S->>M: Return Success
     
     D->>S: POST /api/qr/exchange (with OTC)
     S->>P: Fetch User Info
@@ -93,6 +94,7 @@ curl http://localhost:8090/actuator/health
 | POST | `/api/qr/approve` | QR 코드 승인 (모바일) | ✅ |
 | GET | `/api/qr/status/{challengeId}` | QR 상태 확인 | ❌ |
 | POST | `/api/qr/exchange` | OTC → JWT 토큰 교환 | ❌ |
+| POST | `/api/qr/token/refresh` | QR 로그인 토큰 갱신 | ❌ |
 
 ### 🌊 실시간 SSE API
 
@@ -100,6 +102,16 @@ curl http://localhost:8090/actuator/health
 |--------|----------|------|-----------|
 | GET | `/api/qr/stream/{challengeId}` | SSE 실시간 상태 스트림 | ❌ |
 | GET | `/api/qr/stream/stats/{challengeId}` | SSE 연결 통계 | ❌ |
+
+### 🆔 OrinId API
+
+| Method | Endpoint | 설명 | 인증 필요 |
+|--------|----------|------|-----------|
+| GET | `/api/orin/my` | 내 OrinId 조회 | ✅ |
+| PUT | `/api/orin/my` | 내 OrinId 변경 | ✅ |
+| DELETE | `/api/orin/my` | 내 OrinId 삭제 | ✅ |
+| GET | `/api/orin/check/{orinId}` | OrinId 사용 가능 여부 | ❌ |
+| GET | `/api/orin/user/{orinId}` | OrinId로 사용자 조회 | ✅ |
 
 ### 👤 사용자 API
 
@@ -132,6 +144,7 @@ eventSource.onmessage = async (event) => {
     
     const tokens = await tokenResponse.json();
     localStorage.setItem('accessToken', tokens.accessToken);
+    localStorage.setItem('refreshToken', tokens.refreshToken);
     // 로그인 완료!
   }
 };
@@ -140,7 +153,7 @@ eventSource.onmessage = async (event) => {
 ### 2. 모바일 앱 (인증된 사용자)
 
 ```javascript
-// QR 코드 스캔 후 challengeId 추출
+// QR 코드 스캔 후 challengeId와 nonce 추출
 
 // QR 승인 (JWT 토큰 필요)
 const approveResponse = await fetch('/api/qr/approve', {
@@ -155,7 +168,7 @@ const approveResponse = await fetch('/api/qr/approve', {
   })
 });
 
-// 승인 완료 시 OTC 수신
+// 승인 완료 시 성공 메시지 수신
 const result = await approveResponse.json();
 console.log('QR 승인 완료:', result.message);
 ```
@@ -173,7 +186,7 @@ console.log('QR 승인 완료:', result.message);
 ### 데이터베이스
 - **PostgreSQL 16** - 메인 데이터베이스 (운영)
 - **H2** - 인메모리 데이터베이스 (개발)  
-- **Redis 7** - 세션 저장소
+- **Redis 7** - 세션 저장소 및 QR 챌린지 캐시
 - **Flyway** - 데이터베이스 마이그레이션
 
 ### 기타 라이브러리
@@ -219,10 +232,36 @@ jwt:
   issuer: qr-login-system
 ```
 
+### 보안 특징
+
+1. **JWT 토큰 보안**
+   - Access Token: 15분 만료
+   - Refresh Token: 7일 만료
+   - 토큰 회전 메커니즘 (이미 사용된 토큰 재사용 방지)
+
+2. **QR 챌린지 보안**
+   - 120초 TTL (Time To Live)
+   - Nonce를 통한 재생 공격 방지
+   - OTC(One-Time Code) 일회성 사용
+
+3. **CORS 설정**
+   - 허용된 도메인: 
+     - `https://minjcho.site`
+     - `https://a205.vercel.app`
+     - `https://a205test.vercel.app`
+   - 로컬 개발 환경 지원
+
+4. **Rate Limiting**
+   - SSE 연결: IP당 최대 10연결/1분
+
 ### 인증이 필요한 엔드포인트
 
 - `POST /api/qr/approve` - QR 코드 승인
 - `GET /api/users/me` - 사용자 정보 조회
+- `GET /api/orin/my` - OrinId 조회
+- `PUT /api/orin/my` - OrinId 변경
+- `DELETE /api/orin/my` - OrinId 삭제
+- `GET /api/orin/user/{orinId}` - OrinId로 사용자 조회
 
 ### 기본 사용자 계정
 
@@ -256,6 +295,16 @@ curl -X POST http://localhost:8090/api/qr/init -o qr_code.png
 # 4. 사용자 정보 조회 (JWT 토큰 필요)
 curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   http://localhost:8090/api/users/me
+
+# 5. OrinId 조회 (JWT 토큰 필요)
+curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  http://localhost:8090/api/orin/my
+
+# 6. OrinId 변경 (JWT 토큰 필요)
+curl -X PUT http://localhost:8090/api/orin/my \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"orinId":"newOrinId123"}'
 ```
 
 ## 🧪 테스트
@@ -344,3 +393,21 @@ export JWT_SECRET="your-secure-256-bit-secret"
 - **커넥션 풀**: HikariCP (최대 10개 연결)
 - **Redis 풀**: Lettuce (최대 8개 연결)
 - **SSE 제한**: IP당 최대 10연결/1분
+
+## 📝 라이선스
+
+이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+
+## 🤝 기여하기
+
+Pull Request와 Issue를 환영합니다! 
+
+1. Fork the Project
+2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the Branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📞 문의
+
+프로젝트 관련 문의사항은 Issue를 통해 남겨주세요.
