@@ -1,10 +1,10 @@
 # QR Login System
 
-> QR 코드 기반 인증 시스템 with Spring Boot + JWT + SSE
+> QR 코드 기반 인증 시스템 with Spring Boot + JWT + SSE + Redis
 
 ## 📖 개요
 
-QR Login System은 모바일 앱에서 QR 코드를 스캔하여 데스크톱 브라우저에 자동으로 로그인할 수 있는 현대적인 인증 시스템입니다. 실시간 상태 업데이트와 보안성을 강화한 JWT 기반 토큰 시스템을 제공합니다.
+QR Login System은 모바일 앱에서 QR 코드를 스캔하여 데스크톱 브라우저에 자동으로 로그인할 수 있는 현대적인 인증 시스템입니다. 실시간 상태 업데이트(SSE)와 보안성을 강화한 JWT 기반 토큰 시스템, Redis 기반 세션 관리를 제공합니다.
 
 ## ✨ 주요 기능
 
@@ -19,6 +19,42 @@ QR Login System은 모바일 앱에서 QR 코드를 스캔하여 데스크톱 �
 
 ## 🏗️ 아키텍처
 
+### 시스템 구성도
+
+```mermaid
+graph TB
+    subgraph Frontend["Frontend"]
+        Desktop["데스크톱 브라우저"]
+        Mobile["모바일 앱"]
+    end
+    
+    subgraph Backend["Backend (Spring Boot)"]
+        API["REST API"]
+        SSE["SSE Service"]
+        Auth["Auth Service"]
+        QR["QR Service"]
+    end
+    
+    subgraph Storage["Storage"]
+        Redis[("Redis<br/>- QR Challenge<br/>- OTC<br/>- Refresh Token")]
+        PostgreSQL[("PostgreSQL<br/>- Users<br/>- OrinId")]
+    end
+    
+    Desktop -->|"1. POST /qr/init"| API
+    Desktop -->|"2. SSE Connect"| SSE
+    Mobile -->|"3. POST /qr/approve"| API
+    Desktop -->|"4. POST /qr/exchange"| API
+    
+    API --> QR
+    API --> Auth
+    SSE --> QR
+    QR --> Redis
+    Auth --> PostgreSQL
+    Auth --> Redis
+```
+
+### QR 로그인 시퀀스 다이어그램
+
 ```mermaid
 sequenceDiagram
     participant D as 데스크톱 브라우저
@@ -27,21 +63,32 @@ sequenceDiagram
     participant M as 모바일 앱
     participant P as PostgreSQL
 
+    Note over D,M: 1️⃣ QR 코드 생성 단계
     D->>S: POST /api/qr/init
+    S->>S: Generate challengeId + nonce
     S->>R: Store QR Challenge (TTL: 120s)
-    S->>D: QR Code (PNG) + challengeId
+    S->>D: QR Code (PNG) + Headers(challengeId, nonce)
     
+    Note over D,M: 2️⃣ 실시간 연결 단계
     D->>S: GET /api/qr/stream/{challengeId}
-    Note over D,S: SSE 연결 유지
+    Note over D,S: SSE 연결 유지 (120초 타임아웃)
     
-    M->>S: POST /api/qr/approve (with JWT)
-    S->>R: Update Challenge Status + Generate OTC
-    S->>D: SSE Event: APPROVED + OTC
-    S->>M: Return Success
+    Note over D,M: 3️⃣ 모바일 승인 단계
+    M->>M: Scan QR Code
+    M->>S: POST /api/qr/approve<br/>(challengeId, nonce, JWT)
+    S->>S: Verify JWT & nonce
+    S->>R: Update Status: APPROVED<br/>Generate OTC (TTL: 60s)
+    S-->>D: SSE Event: APPROVED + OTC
+    S->>M: Return Success Response
     
-    D->>S: POST /api/qr/exchange (with OTC)
+    Note over D,M: 4️⃣ 토큰 교환 단계
+    D->>S: POST /api/qr/exchange (OTC)
+    S->>R: Verify OTC
     S->>P: Fetch User Info
-    S->>D: JWT Tokens (Access + Refresh)
+    S->>S: Generate JWT Tokens
+    S->>R: Store Refresh Token
+    S->>R: Update Status: EXCHANGED
+    S->>D: JWT Tokens + OrinId
 ```
 
 ## 🚀 빠른 시작
@@ -119,9 +166,670 @@ curl http://localhost:8090/actuator/health
 |--------|----------|------|-----------|
 | GET | `/api/users/me` | 현재 사용자 정보 조회 | ✅ |
 
-## 🔄 QR 로그인 플로우
+## 💻 프론트엔드 구현 가이드
 
-### 1. 데스크톱 브라우저 (클라이언트)
+### 📱 기술 스택 선택
+
+#### React 기반 구현 (권장)
+```bash
+# Create React App with TypeScript
+npx create-react-app qr-login-frontend --template typescript
+
+# 필요한 패키지 설치
+npm install axios
+npm install react-qr-reader  # 모바일용 QR 스캐너
+npm install js-cookie
+npm install react-router-dom
+```
+
+#### Vue.js 기반 구현
+```bash
+# Vue CLI 프로젝트 생성
+npm create vue@latest qr-login-frontend
+
+# 필요한 패키지 설치
+npm install axios
+npm install qrcode-reader-vue3  # Vue3용 QR 스캐너
+npm install vue-router
+```
+
+### 🖥️ 데스크톱 브라우저 구현
+
+#### 1. QR 로그인 컴포넌트 (React + TypeScript)
+
+```typescript
+// components/QrLogin.tsx
+import React, { useState, useEffect, useRef } from 'react';
+import axios from 'axios';
+
+interface QrLoginProps {
+  onLoginSuccess: (tokens: TokenResponse) => void;
+}
+
+interface TokenResponse {
+  accessToken: string;
+  refreshToken: string;
+  orinId?: string;
+  accessTokenExpiresIn: number;
+  refreshTokenExpiresIn: number;
+}
+
+const QrLogin: React.FC<QrLoginProps> = ({ onLoginSuccess }) => {
+  const [qrCode, setQrCode] = useState<string>('');
+  const [challengeId, setChallengeId] = useState<string>('');
+  const [status, setStatus] = useState<'loading' | 'ready' | 'approved' | 'expired' | 'error'>('loading');
+  const [countdown, setCountdown] = useState<number>(120);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const countdownIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // QR 코드 초기화
+  const initializeQr = async () => {
+    try {
+      setStatus('loading');
+      const response = await axios.post('/api/qr/init', null, {
+        responseType: 'blob'
+      });
+      
+      // 헤더에서 challengeId 추출
+      const challengeId = response.headers['x-challenge-id'];
+      setChallengeId(challengeId);
+      
+      // Blob을 URL로 변환
+      const imageUrl = URL.createObjectURL(response.data);
+      setQrCode(imageUrl);
+      setStatus('ready');
+      setCountdown(120);
+      
+      // SSE 연결 시작
+      connectSSE(challengeId);
+      
+      // 카운트다운 시작
+      startCountdown();
+    } catch (error) {
+      console.error('Failed to initialize QR:', error);
+      setStatus('error');
+    }
+  };
+
+  // SSE 연결
+  const connectSSE = (challengeId: string) => {
+    // 기존 연결 종료
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close();
+    }
+
+    const eventSource = new EventSource(`/api/qr/stream/${challengeId}`);
+    eventSourceRef.current = eventSource;
+
+    eventSource.onopen = () => {
+      console.log('SSE connection opened');
+    };
+
+    eventSource.onmessage = async (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        console.log('SSE message received:', data);
+        
+        if (data.status === 'APPROVED' && data.otc) {
+          setStatus('approved');
+          await exchangeOtcForToken(data.otc);
+        }
+      } catch (error) {
+        console.error('Failed to process SSE message:', error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error('SSE error:', error);
+      eventSource.close();
+      setStatus('error');
+    };
+  };
+
+  // OTC를 토큰으로 교환
+  const exchangeOtcForToken = async (otc: string) => {
+    try {
+      const response = await axios.post<TokenResponse>('/api/qr/exchange', { otc });
+      
+      // 토큰 저장
+      localStorage.setItem('accessToken', response.data.accessToken);
+      localStorage.setItem('refreshToken', response.data.refreshToken);
+      if (response.data.orinId) {
+        localStorage.setItem('orinId', response.data.orinId);
+      }
+      
+      // 성공 콜백
+      onLoginSuccess(response.data);
+    } catch (error) {
+      console.error('Failed to exchange OTC:', error);
+      setStatus('error');
+    }
+  };
+
+  // 카운트다운
+  const startCountdown = () => {
+    if (countdownIntervalRef.current) {
+      clearInterval(countdownIntervalRef.current);
+    }
+
+    countdownIntervalRef.current = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          setStatus('expired');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  // 컴포넌트 마운트
+  useEffect(() => {
+    initializeQr();
+
+    // 클린업
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close();
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      if (qrCode) {
+        URL.revokeObjectURL(qrCode);
+      }
+    };
+  }, []);
+
+  return (
+    <div className="qr-login-container">
+      <h2>QR 코드로 로그인</h2>
+      
+      {status === 'loading' && <div className="spinner">Loading...</div>}
+      
+      {status === 'ready' && (
+        <>
+          <div className="qr-code-wrapper">
+            <img src={qrCode} alt="QR Code" width={256} height={256} />
+            <div className="countdown">{countdown}초 남음</div>
+          </div>
+          <p>모바일 앱으로 QR 코드를 스캔하세요</p>
+        </>
+      )}
+      
+      {status === 'approved' && (
+        <div className="success-message">
+          <span>✅</span> 승인되었습니다. 로그인 중...
+        </div>
+      )}
+      
+      {status === 'expired' && (
+        <div className="error-message">
+          <p>QR 코드가 만료되었습니다.</p>
+          <button onClick={initializeQr}>새로고침</button>
+        </div>
+      )}
+      
+      {status === 'error' && (
+        <div className="error-message">
+          <p>오류가 발생했습니다.</p>
+          <button onClick={initializeQr}>다시 시도</button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default QrLogin;
+```
+
+#### 2. API 인터셉터 설정 (axios)
+
+```typescript
+// utils/api.ts
+import axios from 'axios';
+
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8090';
+
+const api = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+});
+
+// Request 인터셉터 - 토큰 자동 추가
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('accessToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// Response 인터셉터 - 토큰 갱신
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config;
+    
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
+      
+      try {
+        const refreshToken = localStorage.getItem('refreshToken');
+        const response = await axios.post(`${API_BASE_URL}/api/qr/token/refresh`, {
+          refreshToken
+        });
+        
+        localStorage.setItem('accessToken', response.data.accessToken);
+        localStorage.setItem('refreshToken', response.data.refreshToken);
+        
+        originalRequest.headers.Authorization = `Bearer ${response.data.accessToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        // 리프레시 실패 - 로그아웃 처리
+        localStorage.clear();
+        window.location.href = '/login';
+        return Promise.reject(refreshError);
+      }
+    }
+    
+    return Promise.reject(error);
+  }
+);
+
+export default api;
+```
+
+### 📱 모바일 앱 구현
+
+#### 1. QR 스캐너 컴포넌트 (React Native)
+
+```typescript
+// screens/QrScanner.tsx
+import React, { useState } from 'react';
+import { View, Text, Alert, StyleSheet } from 'react-native';
+import QRCodeScanner from 'react-native-qrcode-scanner';
+import { RNCamera } from 'react-native-camera';
+import api from '../utils/api';
+
+interface QrData {
+  challengeId: string;
+  nonce: string;
+}
+
+const QrScanner: React.FC = () => {
+  const [isScanning, setIsScanning] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const onQrCodeRead = async (e: any) => {
+    if (isProcessing) return;
+    
+    try {
+      setIsProcessing(true);
+      setIsScanning(false);
+      
+      // QR 데이터 파싱
+      const qrData: QrData = JSON.parse(e.data);
+      
+      // QR 승인 요청
+      await approveQrLogin(qrData);
+      
+    } catch (error) {
+      console.error('QR processing error:', error);
+      Alert.alert(
+        '오류',
+        'QR 코드 처리 중 오류가 발생했습니다.',
+        [
+          {
+            text: '다시 시도',
+            onPress: () => {
+              setIsScanning(true);
+              setIsProcessing(false);
+            }
+          }
+        ]
+      );
+    }
+  };
+
+  const approveQrLogin = async (qrData: QrData) => {
+    try {
+      const response = await api.post('/api/qr/approve', {
+        challengeId: qrData.challengeId,
+        nonce: qrData.nonce
+      });
+      
+      Alert.alert(
+        '성공',
+        '데스크톱 로그인이 승인되었습니다.',
+        [
+          {
+            text: '확인',
+            onPress: () => {
+              // 홈 화면으로 이동
+              navigation.navigate('Home');
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'QR 승인 실패');
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {isScanning && (
+        <QRCodeScanner
+          onRead={onQrCodeRead}
+          flashMode={RNCamera.Constants.FlashMode.off}
+          topContent={
+            <Text style={styles.centerText}>
+              데스크톱의 QR 코드를 스캔하세요
+            </Text>
+          }
+          bottomContent={
+            <Text style={styles.textBold}>
+              카메라를 QR 코드에 맞춰주세요
+            </Text>
+          }
+        />
+      )}
+      
+      {isProcessing && (
+        <View style={styles.processing}>
+          <Text>처리 중...</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  centerText: {
+    fontSize: 18,
+    padding: 32,
+    color: '#777',
+  },
+  textBold: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#000',
+  },
+  processing: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+});
+
+export default QrScanner;
+```
+
+#### 2. 모바일 인증 서비스
+
+```typescript
+// services/authService.ts
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import api from '../utils/api';
+
+class AuthService {
+  // 로그인
+  async login(email: string, password: string) {
+    try {
+      const response = await api.post('/api/auth/login', {
+        email,
+        password
+      });
+      
+      // 토큰 저장
+      await AsyncStorage.setItem('accessToken', response.data.accessToken);
+      await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
+      if (response.data.orinId) {
+        await AsyncStorage.setItem('orinId', response.data.orinId);
+      }
+      
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  }
+
+  // 토큰 갱신
+  async refreshToken() {
+    try {
+      const refreshToken = await AsyncStorage.getItem('refreshToken');
+      if (!refreshToken) throw new Error('No refresh token');
+      
+      const response = await api.post('/api/auth/refresh', {
+        refreshToken
+      });
+      
+      await AsyncStorage.setItem('accessToken', response.data.accessToken);
+      await AsyncStorage.setItem('refreshToken', response.data.refreshToken);
+      
+      return response.data;
+    } catch (error) {
+      // 리프레시 실패 - 로그아웃
+      await this.logout();
+      throw error;
+    }
+  }
+
+  // 로그아웃
+  async logout() {
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'orinId']);
+  }
+
+  // 현재 토큰 가져오기
+  async getAccessToken() {
+    return await AsyncStorage.getItem('accessToken');
+  }
+}
+
+export default new AuthService();
+```
+
+### 🎨 UI/UX 디자인 가이드
+
+#### 1. QR 로그인 화면 스타일 (CSS)
+
+```css
+/* styles/QrLogin.css */
+.qr-login-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+.qr-code-wrapper {
+  position: relative;
+  padding: 1rem;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-wrapper img {
+  display: block;
+}
+
+.countdown {
+  position: absolute;
+  bottom: -10px;
+  right: -10px;
+  background: #007bff;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #007bff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.success-message {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 2rem;
+  background: #d4edda;
+  color: #155724;
+  border-radius: 8px;
+  font-weight: 500;
+}
+
+.error-message {
+  text-align: center;
+  padding: 1rem;
+  background: #f8d7da;
+  color: #721c24;
+  border-radius: 8px;
+}
+
+.error-message button {
+  margin-top: 1rem;
+  padding: 0.5rem 2rem;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.error-message button:hover {
+  background: #0056b3;
+}
+```
+
+### 🔒 보안 고려사항
+
+#### 1. 토큰 저장 전략
+
+```typescript
+// utils/tokenManager.ts
+class TokenManager {
+  private readonly ACCESS_TOKEN_KEY = 'access_token';
+  private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  
+  // HttpOnly 쿠키 사용 (권장)
+  setTokensInCookie(accessToken: string, refreshToken: string) {
+    // 서버에서 HttpOnly 쿠키로 설정하는 것이 가장 안전
+    // 클라이언트에서는 설정 불가
+  }
+  
+  // localStorage 사용 (간편하지만 XSS 취약)
+  setTokensInLocalStorage(accessToken: string, refreshToken: string) {
+    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+  
+  // sessionStorage 사용 (브라우저 종료 시 삭제)
+  setTokensInSessionStorage(accessToken: string, refreshToken: string) {
+    sessionStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
+    sessionStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
+  }
+  
+  // Memory 저장 (가장 안전하지만 새로고침 시 손실)
+  private tokens = {
+    accessToken: '',
+    refreshToken: ''
+  };
+  
+  setTokensInMemory(accessToken: string, refreshToken: string) {
+    this.tokens.accessToken = accessToken;
+    this.tokens.refreshToken = refreshToken;
+  }
+}
+```
+
+#### 2. CSRF 보호
+
+```typescript
+// utils/csrf.ts
+class CsrfProtection {
+  private csrfToken: string = '';
+  
+  async fetchCsrfToken() {
+    const response = await fetch('/api/csrf-token');
+    this.csrfToken = await response.text();
+    return this.csrfToken;
+  }
+  
+  getHeaders() {
+    return {
+      'X-CSRF-Token': this.csrfToken
+    };
+  }
+}
+```
+
+### 📊 모니터링 및 에러 처리
+
+```typescript
+// utils/errorHandler.ts
+class ErrorHandler {
+  handleQrError(error: any) {
+    const errorMessages: Record<string, string> = {
+      'INVALID_CHALLENGE': 'QR 코드가 유효하지 않습니다.',
+      'EXPIRED_CHALLENGE': 'QR 코드가 만료되었습니다.',
+      'INVALID_NONCE': '보안 검증에 실패했습니다.',
+      'ALREADY_EXCHANGED': '이미 사용된 QR 코드입니다.',
+      'NETWORK_ERROR': '네트워크 연결을 확인해주세요.',
+    };
+    
+    const errorCode = error.response?.data?.code;
+    return errorMessages[errorCode] || '알 수 없는 오류가 발생했습니다.';
+  }
+  
+  logError(error: any, context: string) {
+    console.error(`[${context}]`, error);
+    
+    // 프로덕션에서는 에러 추적 서비스로 전송
+    if (process.env.NODE_ENV === 'production') {
+      // Sentry, LogRocket 등으로 에러 전송
+    }
+  }
+}
+```
+
+### 🚀 프로덕션 배포 체크리스트
+
+- [ ] HTTPS 적용 확인
+- [ ] CORS 설정 확인
+- [ ] 환경 변수 설정 (API_URL 등)
+- [ ] 에러 트래킹 설정 (Sentry 등)
+- [ ] 성능 모니터링 설정
+- [ ] 토큰 저장 방식 결정 (HttpOnly Cookie 권장)
+- [ ] Rate Limiting 확인
+- [ ] SSL Pinning 적용 (모바일)
+- [ ] 코드 난독화 (프로덕션 빌드)
+- [ ] 보안 헤더 설정 (CSP, X-Frame-Options 등)
+
+## 🔄 QR 로그인 플로우 (이전 내용 유지)
+
+### 1. 데스크톱 브라우저 (간단한 구현 예시)
 
 ```javascript
 // 1. QR 코드 초기화
@@ -150,7 +858,7 @@ eventSource.onmessage = async (event) => {
 };
 ```
 
-### 2. 모바일 앱 (인증된 사용자)
+### 2. 모바일 앱 (간단한 구현 예시)
 
 ```javascript
 // QR 코드 스캔 후 challengeId와 nonce 추출
@@ -394,20 +1102,15 @@ export JWT_SECRET="your-secure-256-bit-secret"
 - **Redis 풀**: Lettuce (최대 8개 연결)
 - **SSE 제한**: IP당 최대 10연결/1분
 
-## 📝 라이선스
+## 🎯 프로덕션 체크리스트
 
-이 프로젝트는 MIT 라이선스 하에 배포됩니다.
+### 배포 전 확인사항
+- [ ] JWT Secret 변경 (최소 256비트)
+- [ ] CORS 도메인 설정
+- [ ] SSL/TLS 인증서 설정
+- [ ] Rate Limiting 설정
+- [ ] 로그 레벨 조정 (INFO/WARN)
+- [ ] 데이터베이스 백업 설정
+- [ ] 모니터링 도구 설정
+- [ ] 헬스체크 엔드포인트 설정
 
-## 🤝 기여하기
-
-Pull Request와 Issue를 환영합니다! 
-
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📞 문의
-
-프로젝트 관련 문의사항은 Issue를 통해 남겨주세요.
