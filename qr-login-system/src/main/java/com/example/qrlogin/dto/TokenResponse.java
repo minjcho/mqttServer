@@ -26,4 +26,7 @@ public class TokenResponse {
     
     @Schema(description = "리프레시 토큰 만료 시간 (초)", example = "604800")
     private Long refreshTokenExpiresIn;
+    
+    @Schema(description = "사용자 OrinID", example = "ORIN123456")
+    private String orinId;
 }

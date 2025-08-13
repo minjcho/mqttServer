@@ -5,6 +5,9 @@ import com.example.qrlogin.dto.TokenResponse;
 import com.example.qrlogin.entity.RefreshToken;
 import com.example.qrlogin.exception.InvalidOtcException;
 import com.example.qrlogin.repository.RefreshTokenRepository;
+import com.example.qrlogin.user.User;
+import com.example.qrlogin.user.UserService;
+import com.example.qrlogin.user.Role;
 import com.example.qrlogin.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +23,7 @@ public class TokenService {
     
     private final JwtUtil jwtUtil;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserService userService;
     
     public TokenResponse generateTokens(String userId) {
         // Clean up any expired tokens first
@@ -83,8 +87,14 @@ public class TokenService {
         
         String userId = storedToken.getUserId();
         
+        // Get user info for access token generation
+        User user = userService.getUserById(Long.valueOf(userId));
+        java.util.Set<String> roleNames = user.getRoles().stream()
+            .map(Role::name)
+            .collect(java.util.stream.Collectors.toSet());
+        
         // Generate new token pair
-        String newAccessToken = jwtUtil.generateAccessToken(userId);
+        String newAccessToken = jwtUtil.generateAccessToken(userId, user.getEmail(), roleNames, user.getOrinId());
         String newRefreshToken = jwtUtil.generateRefreshToken(userId);
         String newTokenId = jwtUtil.extractTokenId(newRefreshToken);
         
@@ -111,6 +121,7 @@ public class TokenService {
             .tokenType("Bearer")
             .accessTokenExpiresIn(jwtUtil.getAccessTokenExpirationTime() / 1000)
             .refreshTokenExpiresIn(jwtUtil.getRefreshTokenExpirationTime() / 1000)
+            .orinId(user.getOrinId())
             .build();
     }
     

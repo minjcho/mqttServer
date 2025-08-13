@@ -173,7 +173,7 @@ public class QrLoginService {
             .map(com.example.qrlogin.user.Role::name)
             .collect(java.util.stream.Collectors.toSet());
         
-        String desktopAccessToken = jwtUtil.generateAccessToken(userId, user.getEmail(), roleNames);
+        String desktopAccessToken = jwtUtil.generateAccessToken(userId, user.getEmail(), roleNames, user.getOrinId());
         String refreshToken = jwtUtil.generateRefreshToken(userId);
         
         // Save refresh token
@@ -195,6 +195,7 @@ public class QrLoginService {
             .tokenType("Bearer")
             .accessTokenExpiresIn(jwtUtil.getAccessTokenExpirationTime() / 1000)
             .refreshTokenExpiresIn(jwtUtil.getRefreshTokenExpirationTime() / 1000)
+            .orinId(user.getOrinId())
             .build();
     }
     

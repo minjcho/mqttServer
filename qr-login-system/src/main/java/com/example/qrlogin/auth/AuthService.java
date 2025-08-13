@@ -83,6 +83,7 @@ public class AuthService {
             .tokenType("Bearer")
             .accessTokenExpiresIn(jwtUtil.getAccessTokenExpirationTime() / 1000)
             .refreshTokenExpiresIn(jwtUtil.getRefreshTokenExpirationTime() / 1000)
+            .orinId(user.getOrinId())
             .build();
     }
     

@@ -15,4 +15,5 @@ public class QrExchangeResponse {
     private String tokenType;
     private Long accessTokenExpiresIn;
     private Long refreshTokenExpiresIn;
+    private String orinId;
 }
