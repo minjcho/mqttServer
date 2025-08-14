@@ -37,8 +37,10 @@ public class RedisConfig {
         // Create ObjectMapper with JSR310 module for LocalDateTime support
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.findAndRegisterModules();
+        objectMapper.disable(com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         
-        // Configure Jackson2JsonRedisSerializer
+        // Configure Jackson2JsonRedisSerializer with type information
         Jackson2JsonRedisSerializer<Object> serializer = new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
         
         // Use String serializer for keys
