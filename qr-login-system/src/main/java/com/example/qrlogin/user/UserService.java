@@ -36,11 +36,7 @@ public class UserService {
     public User updateOrinId(Long userId, String orinId) {
         User user = getUserById(userId);
         
-        // Check if orinId is already in use by another user
-        if (orinId != null && userRepository.existsByOrinIdAndIdNot(orinId, userId)) {
-            throw new IllegalArgumentException("OrinId is already in use");
-        }
-        
+        // Allow duplicate orinId - no check needed
         user.setOrinId(orinId);
         return userRepository.save(user);
     }
@@ -53,6 +49,7 @@ public class UserService {
     
     @Transactional(readOnly = true)
     public boolean isOrinIdAvailable(String orinId) {
-        return !userRepository.existsByOrinId(orinId);
+        // Always return true since we allow duplicate orinIds
+        return true;
     }
 }

@@ -36,14 +36,7 @@ public class AuthService {
         
         String hashedPassword = passwordEncoder.encode(request.getPassword());
         
-        // Check if orinId is provided and available
-        if (request.getOrinId() != null && !request.getOrinId().isEmpty()) {
-            if (!userRepository.existsByOrinId(request.getOrinId())) {
-                // OrinId is available
-            } else {
-                throw new IllegalArgumentException("OrinId is already in use");
-            }
-        }
+        // Allow duplicate orinId registration - no check needed
         
         User user = User.builder()
             .email(request.getEmail())
