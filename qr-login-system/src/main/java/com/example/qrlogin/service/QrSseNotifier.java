@@ -67,18 +67,19 @@ public class QrSseNotifier {
     /**
      * QR 승인 시 구독자들에게 알림 전송 후 연결 종료
      */
-    public void notifyApproved(String challengeId, @Nullable Instant expiresAt) {
+    public void notifyApproved(String challengeId, String otc, @Nullable Instant expiresAt) {
         try {
             Map<String, Object> message = Map.of(
                 "challengeId", challengeId,
                 "status", "APPROVED",
+                "otc", otc,
                 "expiresAt", expiresAt != null ? expiresAt.toString() : ""
             );
             
             String jsonData = objectMapper.writeValueAsString(message);
             sendToAllAndClose(challengeId, jsonData);
             
-            log.info("Notified APPROVED status for challengeId: {}", challengeId);
+            log.info("Notified APPROVED status for challengeId: {} with OTC", challengeId);
         } catch (Exception e) {
             log.error("Failed to notify approved status for challengeId: {}", challengeId, e);
         }

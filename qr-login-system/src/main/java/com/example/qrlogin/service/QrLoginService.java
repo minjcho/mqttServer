@@ -103,11 +103,11 @@ public class QrLoginService {
         challengeRepository.update(challenge);
         challengeRepository.saveOtc(otc, challenge.getChallengeId());
         
-        // SSE 알림: QR 승인됨
+        // SSE 알림: QR 승인됨 (OTC 포함)
         try {
             // OTC 만료 시간 계산 (60초 후)
             java.time.Instant expiresAt = java.time.Instant.now().plusSeconds(60);
-            qrSseNotifier.notifyApproved(challenge.getChallengeId(), expiresAt);
+            qrSseNotifier.notifyApproved(challenge.getChallengeId(), otc, expiresAt);
         } catch (Exception e) {
             log.warn("Failed to send SSE notification for approved QR: {}", challenge.getChallengeId(), e);
         }
