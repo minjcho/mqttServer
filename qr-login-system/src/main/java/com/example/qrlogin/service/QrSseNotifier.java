@@ -10,7 +10,9 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -111,19 +113,23 @@ public class QrSseNotifier {
             String challengeId = entry.getKey();
             CopyOnWriteArrayList<SseEmitter> emitterList = entry.getValue();
             
-            Iterator<SseEmitter> iterator = emitterList.iterator();
-            while (iterator.hasNext()) {
-                SseEmitter emitter = iterator.next();
+            // 제거할 emitter들을 별도로 수집
+            List<SseEmitter> toRemove = new ArrayList<>();
+            
+            for (SseEmitter emitter : emitterList) {
                 try {
                     emitter.send(SseEmitter.event().comment("ping"));
                 } catch (IOException e) {
-                    log.debug("Heartbeat failed for challengeId: {}, removing emitter", challengeId);
-                    iterator.remove();
+                    log.debug("Heartbeat failed for challengeId: {}, marking emitter for removal", challengeId);
+                    toRemove.add(emitter);
                     try {
                         emitter.complete();
                     } catch (Exception ignored) {}
                 }
             }
+            
+            // 실패한 emitter들 제거
+            emitterList.removeAll(toRemove);
             
             // 빈 리스트 제거
             if (emitterList.isEmpty()) {
