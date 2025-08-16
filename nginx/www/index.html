@@ -42,7 +42,7 @@
                     <div class="service-card" id="ws-service">
                         <div class="service-icon">🌐</div>
                         <h3>WebSocket Server</h3>
-                        <p class="service-port">Port: 8081</p>
+                        <p class="service-port">Port: 8081 (SockJS)</p>
                         <div class="service-status checking">확인중...</div>
                         <button onclick="testWebSocket()">연결</button>
                     </div>
@@ -58,7 +58,7 @@
 
             <!-- 실시간 좌표 데이터 -->
             <section class="card">
-                <h2>📍 실시간 좌표 데이터</h2>
+                <h2>📍 실시간 좌표 데이터 (ORIN: 1420524217000)</h2>
                 <div class="coordinate-display">
                     <div class="coord-item">
                         <label>X 좌표:</label>
@@ -136,6 +136,7 @@
         </footer>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

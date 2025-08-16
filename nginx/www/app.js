@@ -93,7 +93,7 @@ function checkWebSocketService() {
     const serviceCard = document.getElementById('ws-service');
     const statusDiv = serviceCard.querySelector('.service-status');
     
-    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
+    if (wsConnection && wsConnection.readyState === SockJS.OPEN) {
         statusDiv.textContent = '연결됨';
         statusDiv.className = 'service-status online';
         document.getElementById('ws-status').className = 'status-dot online';
@@ -139,21 +139,24 @@ async function testQRService() {
     }
 }
 
-// WebSocket 연결 테스트
+// WebSocket 연결 테스트 (SockJS 사용)
 function testWebSocket() {
-    if (wsConnection && wsConnection.readyState === WebSocket.OPEN) {
-        addLog('WebSocket 이미 연결되어 있습니다', 'warning');
+    if (wsConnection && wsConnection.readyState === SockJS.OPEN) {
+        addLog('SockJS 이미 연결되어 있습니다', 'warning');
         return;
     }
     
-    addLog('WebSocket 연결 시도...', 'info');
+    addLog('SockJS 연결 시도...', 'info');
     document.getElementById('ws-status').className = 'status-dot connecting';
     
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    wsConnection = new WebSocket(`${protocol}//minjcho.site/coordinates`);
+    // ORIN ID 설정 (테스트용)
+    const ORIN_ID = '1420524217000';
+    
+    // SockJS 연결
+    wsConnection = new SockJS(`https://minjcho.site/coordinates?orinId=${ORIN_ID}`);
     
     wsConnection.onopen = () => {
-        addLog('WebSocket 연결 성공', 'success');
+        addLog(`SockJS 연결 성공 - ORIN ID: ${ORIN_ID}`, 'success');
         document.getElementById('ws-status').className = 'status-dot online';
         checkWebSocketService();
     };
@@ -161,20 +164,32 @@ function testWebSocket() {
     wsConnection.onmessage = (event) => {
         try {
             const data = JSON.parse(event.data);
-            updateCoordinateDisplay(data);
-            addLog(`좌표 수신: X=${data.coordX}, Y=${data.coordY}`, 'info');
+            
+            if (data.type === 'connected') {
+                addLog(`✅ ${data.message} (구독 ORIN ID: ${data.orinId})`, 'success');
+            } else if (data.type === 'coordinates') {
+                updateCoordinateDisplay({
+                    coordX: data.data.coordX,
+                    coordY: data.data.coordY,
+                    timestamp: data.timestamp,
+                    orinId: data.orinId
+                });
+                addLog(`📍 ORIN ${data.orinId} 좌표: X=${data.data.coordX}, Y=${data.data.coordY}`, 'info');
+            } else {
+                addLog('메시지 수신: ' + event.data, 'info');
+            }
         } catch (error) {
-            addLog('WebSocket 메시지 파싱 오류: ' + error.message, 'error');
+            addLog('SockJS 메시지 파싱 오류: ' + error.message, 'error');
         }
     };
     
     wsConnection.onerror = (error) => {
-        addLog('WebSocket 오류: ' + error.message, 'error');
+        addLog('SockJS 오류: ' + error.message, 'error');
         document.getElementById('ws-status').className = 'status-dot offline';
     };
     
     wsConnection.onclose = () => {
-        addLog('WebSocket 연결 종료', 'warning');
+        addLog('SockJS 연결 종료', 'warning');
         document.getElementById('ws-status').className = 'status-dot offline';
         wsConnection = null;
         checkWebSocketService();
