@@ -403,22 +403,22 @@ function updateQRStatus(data) {
     switch(data.status) {
         case 'PENDING':
             statusDiv.textContent = '⏳ QR 코드 스캔 대기중...';
-            statusDiv.style.color = var(--warning-color);
+            statusDiv.style.color = '#f59e0b';
             break;
         case 'APPROVED':
             statusDiv.textContent = '✅ QR 코드 승인됨!';
-            statusDiv.style.color = var(--secondary-color);
+            statusDiv.style.color = '#10b981';
             if (data.token) {
                 statusDiv.textContent += ` (토큰: ${data.token.substring(0, 20)}...)`;
             }
             break;
         case 'EXPIRED':
             statusDiv.textContent = '❌ QR 코드 만료됨';
-            statusDiv.style.color = var(--danger-color);
+            statusDiv.style.color = '#ef4444';
             break;
         case 'EXCHANGED':
             statusDiv.textContent = '🔄 토큰 교환 완료';
-            statusDiv.style.color = var(--primary-color);
+            statusDiv.style.color = '#2563eb';
             break;
         default:
             statusDiv.textContent = `상태: ${data.status}`;
