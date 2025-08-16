@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MQTT 실시간 모니터링 시스템</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 실시간 IoT 모니터링 대시보드</h1>
+            <div class="status-bar">
+                <span class="status-item">
+                    <span class="status-dot" id="mqtt-status"></span>
+                    MQTT
+                </span>
+                <span class="status-item">
+                    <span class="status-dot" id="ws-status"></span>
+                    WebSocket
+                </span>
+                <span class="status-item">
+                    <span class="status-dot" id="api-status"></span>
+                    API
+                </span>
+                <span class="timestamp" id="current-time"></span>
+            </div>
+        </header>
+
+        <div class="dashboard">
+            <!-- 시스템 서비스 상태 -->
+            <section class="card">
+                <h2>📊 서비스 상태</h2>
+                <div class="services-grid">
+                    <div class="service-card" id="qr-service">
+                        <div class="service-icon">🔐</div>
+                        <h3>QR Login System</h3>
+                        <p class="service-port">Port: 8090</p>
+                        <div class="service-status checking">확인중...</div>
+                        <button onclick="testQRService()">테스트</button>
+                    </div>
+                    <div class="service-card" id="ws-service">
+                        <div class="service-icon">🌐</div>
+                        <h3>WebSocket Server</h3>
+                        <p class="service-port">Port: 8081</p>
+                        <div class="service-status checking">확인중...</div>
+                        <button onclick="testWebSocket()">연결</button>
+                    </div>
+                    <div class="service-card" id="mqtt-service">
+                        <div class="service-icon">📡</div>
+                        <h3>MQTT Broker</h3>
+                        <p class="service-port">Port: 3123</p>
+                        <div class="service-status checking">확인중...</div>
+                        <button onclick="testMQTT()">테스트</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 실시간 좌표 데이터 -->
+            <section class="card">
+                <h2>📍 실시간 좌표 데이터</h2>
+                <div class="coordinate-display">
+                    <div class="coord-item">
+                        <label>X 좌표:</label>
+                        <span id="coord-x">-</span>
+                    </div>
+                    <div class="coord-item">
+                        <label>Y 좌표:</label>
+                        <span id="coord-y">-</span>
+                    </div>
+                    <div class="coord-item">
+                        <label>타임스탬프:</label>
+                        <span id="coord-timestamp">-</span>
+                    </div>
+                </div>
+                <canvas id="coordinate-chart"></canvas>
+            </section>
+
+            <!-- QR 로그인 테스트 -->
+            <section class="card">
+                <h2>🔑 QR 로그인 테스트</h2>
+                <div class="qr-test">
+                    <button onclick="generateQR()" class="btn-primary">QR 코드 생성</button>
+                    <div id="qr-display" class="qr-container"></div>
+                    <div id="qr-status" class="qr-status"></div>
+                </div>
+            </section>
+
+            <!-- API 엔드포인트 목록 -->
+            <section class="card">
+                <h2>🔌 API 엔드포인트</h2>
+                <div class="api-endpoints">
+                    <div class="endpoint-group">
+                        <h4>인증 API</h4>
+                        <ul>
+                            <li><code>POST /api/auth/signup</code> - 회원가입</li>
+                            <li><code>POST /api/auth/login</code> - 로그인</li>
+                            <li><code>POST /api/auth/refresh</code> - 토큰 갱신</li>
+                        </ul>
+                    </div>
+                    <div class="endpoint-group">
+                        <h4>QR 로그인 API</h4>
+                        <ul>
+                            <li><code>GET /api/qr/init</code> - QR 초기화</li>
+                            <li><code>POST /api/qr/approve</code> - QR 승인</li>
+                            <li><code>GET /api/qr/sse/{id}</code> - SSE 상태</li>
+                        </ul>
+                    </div>
+                    <div class="endpoint-group">
+                        <h4>WebSocket</h4>
+                        <ul>
+                            <li><code>WS /coordinates</code> - 좌표 스트림</li>
+                            <li><code>WS /api/mqtt</code> - MQTT 브릿지</li>
+                        </ul>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 시스템 로그 -->
+            <section class="card">
+                <h2>📜 실시간 로그</h2>
+                <div class="log-container" id="log-container">
+                    <div class="log-entry info">시스템 시작됨...</div>
+                </div>
+                <div class="log-controls">
+                    <button onclick="clearLogs()">로그 지우기</button>
+                    <label>
+                        <input type="checkbox" id="auto-scroll" checked> 자동 스크롤
+                    </label>
+                </div>
+            </section>
+        </div>
+
+        <footer>
+            <p>© 2024 MQTT Real-time Monitoring System | <a href="https://github.com/your-repo" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
