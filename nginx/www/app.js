@@ -304,24 +304,34 @@ async function sendMQTTCommand() {
         responseDiv.textContent = '⏳ 명령 전송 중...';
         responseDiv.className = 'mqtt-response';
         
+        // JSON 형식으로 명령 전송
+        const requestBody = {
+            command: command
+        };
+        
         const response = await fetch(`/api/mqtt/commands/${orinId}`, {
             method: 'POST',
             headers: {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: command
+            body: JSON.stringify(requestBody)
         });
         
-        const result = await response.text();
+        const result = await response.json();
         
         if (response.ok) {
-            responseDiv.textContent = `✅ 명령 전송 성공\n응답: ${result}`;
+            responseDiv.textContent = `✅ 명령 전송 성공\n` +
+                `ORIN ID: ${result.orinId}\n` +
+                `명령: ${result.command}\n` +
+                `상태: ${result.success ? '성공' : '실패'}\n` +
+                `메시지: ${result.message}`;
             responseDiv.className = 'mqtt-response success';
-            addLog(`MQTT 명령 전송 성공: ${result}`, 'success');
+            addLog(`MQTT 명령 전송 성공: ${result.message}`, 'success');
         } else {
-            responseDiv.textContent = `❌ 명령 전송 실패 (${response.status})\n${result}`;
+            responseDiv.textContent = `❌ 명령 전송 실패 (${response.status})\n${JSON.stringify(result, null, 2)}`;
             responseDiv.className = 'mqtt-response error';
-            addLog(`MQTT 명령 전송 실패: ${result}`, 'error');
+            addLog(`MQTT 명령 전송 실패: ${JSON.stringify(result)}`, 'error');
         }
     } catch (error) {
         responseDiv.textContent = `❌ 오류 발생: ${error.message}`;

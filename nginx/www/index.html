@@ -88,6 +88,7 @@
                         <div class="form-group">
                             <label for="mqtt-command">명령:</label>
                             <input type="text" id="mqtt-command" placeholder="전송할 명령 입력 (예: STOP, START, STATUS)">
+                            <small style="color: #94a3b8; font-size: 0.8rem; margin-top: 4px;">JSON 형식: {"command": "your_command"}</small>
                         </div>
                         <button onclick="sendMQTTCommand()" class="btn-primary">명령 전송</button>
                     </div>
