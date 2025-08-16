@@ -234,7 +234,7 @@ for concurrent in 100 500 1000 2000 3000 5000; do
     fi
     
     echo ""
-    sleep 5  # 다음 테스트 전 쿨다운
+    sleep 20  # 다음 테스트 전 쿨다운
 done
 
 # 2. HTTP API 한계 테스트
@@ -284,7 +284,7 @@ if command -v ab &> /dev/null; then
             break
         fi
         
-        sleep 5
+        sleep 20
     done
 else
     echo "Apache Bench (ab) not installed"
@@ -349,7 +349,7 @@ if command -v node &> /dev/null; then
             break
         fi
         
-        sleep 5
+        sleep 20
     done
 else
     echo -e "${YELLOW}Node.js가 설치되어 있지 않습니다. curl 방식으로 대체합니다.${NC}"
@@ -409,7 +409,7 @@ else
         # 임시 파일 정리
         rm -f $RESULT_DIR/ws-success-$connections.tmp $RESULT_DIR/ws-fail-$connections.tmp
         
-        sleep 5
+        sleep 20
     done
 fi
 
