@@ -235,6 +235,150 @@ function testMQTT() {
     });
 }
 
+// 지도 데이터 조회
+async function fetchMapData() {
+    const orinId = document.getElementById('map-orin-id').value;
+    const responseDiv = document.getElementById('map-response');
+    
+    if (!orinId) {
+        responseDiv.textContent = '❌ ORIN ID를 입력해주세요';
+        responseDiv.className = 'data-response error';
+        addLog('지도 데이터 조회 실패: ORIN ID 누락', 'error');
+        return;
+    }
+    
+    try {
+        addLog(`지도 데이터 조회 시작: ORIN=${orinId}`, 'info');
+        responseDiv.textContent = '⏳ 데이터 조회 중...';
+        responseDiv.className = 'data-response';
+        
+        const response = await fetch(`https://minjcho.site/api/map-data/${orinId}/latest`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            let html = `<h4>✅ 최신 지도 데이터</h4>`;
+            html += `<table>`;
+            html += `<tr><th>항목</th><th>값</th></tr>`;
+            html += `<tr><td>Resolution</td><td>${data.resolution}</td></tr>`;
+            html += `<tr><td>Origin X</td><td>${data.originX}</td></tr>`;
+            html += `<tr><td>Origin Y</td><td>${data.originY}</td></tr>`;
+            html += `<tr><td>Origin Theta</td><td>${data.originTheta}</td></tr>`;
+            html += `<tr><td>Occupied Threshold</td><td>${data.occupiedThresh}</td></tr>`;
+            html += `<tr><td>Free Threshold</td><td>${data.freeThresh}</td></tr>`;
+            html += `<tr><td>Negate</td><td>${data.negate}</td></tr>`;
+            html += `</table>`;
+            
+            if (data.pgmUrl) {
+                html += `<p><strong>PGM 파일:</strong><br><a href="${data.pgmUrl}" target="_blank" class="map-link">다운로드</a></p>`;
+            }
+            if (data.yamlUrl) {
+                html += `<p><strong>YAML 파일:</strong><br><a href="${data.yamlUrl}" target="_blank" class="map-link">다운로드</a></p>`;
+            }
+            
+            responseDiv.innerHTML = html;
+            responseDiv.className = 'data-response success';
+            addLog(`지도 데이터 조회 성공`, 'success');
+        } else {
+            const error = await response.text();
+            responseDiv.textContent = `❌ 조회 실패 (${response.status})\n${error}`;
+            responseDiv.className = 'data-response error';
+            addLog(`지도 데이터 조회 실패: ${error}`, 'error');
+        }
+    } catch (error) {
+        responseDiv.textContent = `❌ 오류 발생: ${error.message}`;
+        responseDiv.className = 'data-response error';
+        addLog(`지도 데이터 조회 오류: ${error.message}`, 'error');
+    }
+}
+
+// 센서 데이터 조회
+async function fetchSensorData() {
+    const orinId = document.getElementById('sensor-orin-id').value;
+    const responseDiv = document.getElementById('sensor-response');
+    
+    if (!orinId) {
+        responseDiv.textContent = '❌ ORIN ID를 입력해주세요';
+        responseDiv.className = 'data-response error';
+        addLog('센서 데이터 조회 실패: ORIN ID 누락', 'error');
+        return;
+    }
+    
+    try {
+        addLog(`센서 데이터 조회 시작: ORIN=${orinId}`, 'info');
+        responseDiv.textContent = '⏳ 데이터 조회 중...';
+        responseDiv.className = 'data-response';
+        
+        const response = await fetch(`https://minjcho.site/api/sensor-data/${orinId}`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            
+            if (Array.isArray(data) && data.length > 0) {
+                let html = `<h4>✅ 센서 데이터 (총 ${data.length}개)</h4>`;
+                html += `<table>`;
+                html += `<tr>
+                    <th>시간</th>
+                    <th>온도(°C)</th>
+                    <th>습도(%)</th>
+                    <th>공기질</th>
+                    <th>X좌표</th>
+                    <th>Y좌표</th>
+                    <th>방</th>
+                </tr>`;
+                
+                // 최신 10개만 표시
+                const recentData = data.slice(-10).reverse();
+                recentData.forEach(item => {
+                    const time = new Date(item.measuredAt).toLocaleString('ko-KR');
+                    html += `<tr>
+                        <td>${time}</td>
+                        <td>${item.temperature}</td>
+                        <td>${item.humidity}</td>
+                        <td>${item.airQuality}</td>
+                        <td>${item.coordX}</td>
+                        <td>${item.coordY}</td>
+                        <td>${item.room}</td>
+                    </tr>`;
+                });
+                
+                html += `</table>`;
+                
+                if (data.length > 10) {
+                    html += `<p style="margin-top: 10px; color: #94a3b8;">최신 10개 데이터만 표시됩니다. (전체: ${data.length}개)</p>`;
+                }
+                
+                responseDiv.innerHTML = html;
+                responseDiv.className = 'data-response success';
+                addLog(`센서 데이터 조회 성공: ${data.length}개 데이터`, 'success');
+            } else {
+                responseDiv.textContent = '데이터가 없습니다.';
+                responseDiv.className = 'data-response';
+                addLog('센서 데이터가 없습니다', 'warning');
+            }
+        } else {
+            const error = await response.text();
+            responseDiv.textContent = `❌ 조회 실패 (${response.status})\n${error}`;
+            responseDiv.className = 'data-response error';
+            addLog(`센서 데이터 조회 실패: ${error}`, 'error');
+        }
+    } catch (error) {
+        responseDiv.textContent = `❌ 오류 발생: ${error.message}`;
+        responseDiv.className = 'data-response error';
+        addLog(`센서 데이터 조회 오류: ${error.message}`, 'error');
+    }
+}
+
 // MQTT 명령 전송
 async function sendMQTTCommand() {
     const orinId = document.getElementById('orin-id').value;

@@ -65,6 +65,36 @@
                 <canvas id="coordinate-chart"></canvas>
             </section>
 
+            <!-- 지도 데이터 조회 -->
+            <section class="card">
+                <h2>🗺️ 지도 데이터</h2>
+                <div class="map-data">
+                    <div class="command-form">
+                        <div class="form-group">
+                            <label for="map-orin-id">ORIN ID:</label>
+                            <input type="text" id="map-orin-id" value="1420524217000" placeholder="ORIN ID 입력">
+                        </div>
+                        <button onclick="fetchMapData()" class="btn-primary">지도 데이터 조회</button>
+                    </div>
+                    <div id="map-response" class="data-response"></div>
+                </div>
+            </section>
+
+            <!-- 센서 데이터 조회 -->
+            <section class="card">
+                <h2>📊 센서 데이터</h2>
+                <div class="sensor-data">
+                    <div class="command-form">
+                        <div class="form-group">
+                            <label for="sensor-orin-id">ORIN ID:</label>
+                            <input type="text" id="sensor-orin-id" value="1420524217000" placeholder="ORIN ID 입력">
+                        </div>
+                        <button onclick="fetchSensorData()" class="btn-primary">센서 데이터 조회</button>
+                    </div>
+                    <div id="sensor-response" class="data-response"></div>
+                </div>
+            </section>
+
             <!-- MQTT 명령 전송 -->
             <section class="card">
                 <h2>🎮 MQTT 명령 전송</h2>
@@ -95,6 +125,8 @@
                         <ul>
                             <li><code>WS /coordinates</code> - 좌표 스트림 (SockJS)</li>
                             <li><code>POST /api/mqtt/commands/{orinId}</code> - MQTT 명령 전송</li>
+                            <li><code>GET /api/map-data/{orinId}/latest</code> - 최신 지도 데이터</li>
+                            <li><code>GET /api/sensor-data/{orinId}</code> - 센서 데이터 조회</li>
                             <li><code>TCP :3123</code> - MQTT Broker 직접 연결</li>
                         </ul>
                     </div>

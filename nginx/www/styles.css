@@ -299,6 +299,66 @@ button:active {
     color: var(--danger-color);
 }
 
+.data-response {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    max-height: 400px;
+    overflow-y: auto;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.data-response.success {
+    border-color: var(--secondary-color);
+}
+
+.data-response.error {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.data-response table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.data-response th,
+.data-response td {
+    padding: 8px;
+    text-align: left;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.data-response th {
+    color: var(--primary-color);
+    font-weight: 600;
+}
+
+.data-response td {
+    color: var(--text-primary);
+}
+
+.data-response tr:hover {
+    background: var(--bg-card);
+}
+
+.map-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    word-break: break-all;
+}
+
+.map-link:hover {
+    text-decoration: underline;
+}
+
 .api-endpoints {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
