@@ -286,6 +286,50 @@ function testMQTT() {
     });
 }
 
+// MQTT 명령 전송
+async function sendMQTTCommand() {
+    const orinId = document.getElementById('orin-id').value;
+    const command = document.getElementById('mqtt-command').value;
+    const responseDiv = document.getElementById('mqtt-response');
+    
+    if (!orinId || !command) {
+        responseDiv.textContent = '❌ ORIN ID와 명령을 모두 입력해주세요';
+        responseDiv.className = 'mqtt-response error';
+        addLog('MQTT 명령 전송 실패: 입력값 누락', 'error');
+        return;
+    }
+    
+    try {
+        addLog(`MQTT 명령 전송 시작: ORIN=${orinId}, Command=${command}`, 'info');
+        responseDiv.textContent = '⏳ 명령 전송 중...';
+        responseDiv.className = 'mqtt-response';
+        
+        const response = await fetch(`/api/mqtt/commands/${orinId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain'
+            },
+            body: command
+        });
+        
+        const result = await response.text();
+        
+        if (response.ok) {
+            responseDiv.textContent = `✅ 명령 전송 성공\n응답: ${result}`;
+            responseDiv.className = 'mqtt-response success';
+            addLog(`MQTT 명령 전송 성공: ${result}`, 'success');
+        } else {
+            responseDiv.textContent = `❌ 명령 전송 실패 (${response.status})\n${result}`;
+            responseDiv.className = 'mqtt-response error';
+            addLog(`MQTT 명령 전송 실패: ${result}`, 'error');
+        }
+    } catch (error) {
+        responseDiv.textContent = `❌ 오류 발생: ${error.message}`;
+        responseDiv.className = 'mqtt-response error';
+        addLog(`MQTT 명령 전송 오류: ${error.message}`, 'error');
+    }
+}
+
 // QR 코드 생성
 async function generateQR() {
     try {

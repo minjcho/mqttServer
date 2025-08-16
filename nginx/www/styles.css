@@ -260,6 +260,68 @@ button:active {
     color: var(--text-secondary);
 }
 
+.mqtt-command {
+    margin-top: 16px;
+}
+
+.command-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.form-group label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.form-group input {
+    padding: 10px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+    transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.mqtt-response {
+    margin-top: 16px;
+    padding: 12px;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    min-height: 50px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-all;
+}
+
+.mqtt-response.success {
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+.mqtt-response.error {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
 .api-endpoints {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));

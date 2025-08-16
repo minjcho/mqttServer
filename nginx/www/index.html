@@ -76,6 +76,25 @@
                 <canvas id="coordinate-chart"></canvas>
             </section>
 
+            <!-- MQTT 명령 전송 -->
+            <section class="card">
+                <h2>🎮 MQTT 명령 전송</h2>
+                <div class="mqtt-command">
+                    <div class="command-form">
+                        <div class="form-group">
+                            <label for="orin-id">ORIN ID:</label>
+                            <input type="text" id="orin-id" value="1420524217000" placeholder="ORIN ID 입력">
+                        </div>
+                        <div class="form-group">
+                            <label for="mqtt-command">명령:</label>
+                            <input type="text" id="mqtt-command" placeholder="전송할 명령 입력 (예: STOP, START, STATUS)">
+                        </div>
+                        <button onclick="sendMQTTCommand()" class="btn-primary">명령 전송</button>
+                    </div>
+                    <div id="mqtt-response" class="mqtt-response"></div>
+                </div>
+            </section>
+
             <!-- QR 로그인 테스트 -->
             <section class="card">
                 <h2>🔑 QR 로그인 테스트</h2>
@@ -107,9 +126,10 @@
                         </ul>
                     </div>
                     <div class="endpoint-group">
-                        <h4>WebSocket</h4>
+                        <h4>WebSocket & MQTT</h4>
                         <ul>
                             <li><code>WS /coordinates</code> - 좌표 스트림</li>
+                            <li><code>POST /api/mqtt/commands/{orinId}</code> - MQTT 명령</li>
                             <li><code>WS /api/mqtt</code> - MQTT 브릿지</li>
                         </ul>
                     </div>
