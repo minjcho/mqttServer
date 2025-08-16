@@ -109,7 +109,7 @@ async function checkMQTTService() {
     
     try {
         // MQTT over WebSocket 연결 테스트
-        const testWs = new WebSocket('wss://minjcho.site/api/mqtt');
+        const testWs = new WebSocket('wss://minjcho.site/api/mqtt/');
         
         testWs.onopen = () => {
             statusDiv.textContent = '온라인';
@@ -279,7 +279,7 @@ function drawCoordinateChart() {
 function testMQTT() {
     addLog('MQTT 브로커 테스트 시작...', 'info');
     
-    const mqttWs = new WebSocket('wss://minjcho.site/api/mqtt');
+    const mqttWs = new WebSocket('wss://minjcho.site/api/mqtt/');
     
     mqttWs.onopen = () => {
         addLog('MQTT WebSocket 연결 성공', 'success');
