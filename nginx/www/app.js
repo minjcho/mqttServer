@@ -54,39 +54,10 @@ function clearLogs() {
 
 // 모든 서비스 상태 확인
 async function checkAllServices() {
-    checkQRService();
     checkWebSocketService();
     checkMQTTService();
 }
 
-// QR 로그인 서비스 확인
-async function checkQRService() {
-    const serviceCard = document.getElementById('qr-service');
-    const statusDiv = serviceCard.querySelector('.service-status');
-    
-    try {
-        // OPTIONS 요청으로 서비스 확인 (CORS preflight를 활용)
-        const response = await fetch('/api/qr/init', {
-            method: 'OPTIONS',
-            mode: 'cors'
-        });
-        
-        // OPTIONS 요청이 204를 반환하거나 다른 응답이 있으면 서비스가 살아있음
-        if (response.status === 204 || response.status === 200 || response.status === 403) {
-            statusDiv.textContent = '온라인';
-            statusDiv.className = 'service-status online';
-            document.getElementById('api-status').className = 'status-dot online';
-            addLog('QR Login Service 연결 확인', 'success');
-        } else {
-            throw new Error('Service unavailable');
-        }
-    } catch (error) {
-        statusDiv.textContent = '오프라인';
-        statusDiv.className = 'service-status offline';
-        document.getElementById('api-status').className = 'status-dot offline';
-        addLog('QR Login Service 연결 실패: ' + error.message, 'error');
-    }
-}
 
 // WebSocket 서비스 확인
 function checkWebSocketService() {
@@ -116,28 +87,6 @@ async function checkMQTTService() {
     addLog('MQTT Broker는 포트 3123에서 실행 중', 'info');
 }
 
-// QR 서비스 테스트
-async function testQRService() {
-    try {
-        addLog('QR Login Service 테스트 시작...', 'info');
-        // OPTIONS 요청으로 CORS 테스트
-        const response = await fetch('/api/auth/signup', {
-            method: 'OPTIONS',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.status === 204) {
-            addLog('QR Login Service CORS 테스트 성공 (OPTIONS 204)', 'success');
-            addLog('서비스가 정상적으로 응답하고 있습니다', 'success');
-        } else {
-            addLog('QR Login Service 응답 상태: ' + response.status, 'warning');
-        }
-    } catch (error) {
-        addLog('QR Login Service 테스트 오류: ' + error.message, 'error');
-    }
-}
 
 // WebSocket 연결 테스트 (SockJS 사용)
 function testWebSocket() {
@@ -340,117 +289,3 @@ async function sendMQTTCommand() {
     }
 }
 
-// QR 코드 생성
-async function generateQR() {
-    try {
-        addLog('QR 코드 생성 요청...', 'info');
-        
-        const response = await fetch('/api/qr/init', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response.ok) {
-            const data = await response.json();
-            displayQRCode(data);
-            
-            // SSE로 상태 모니터링
-            if (data.challengeId) {
-                monitorQRStatus(data.challengeId);
-            }
-            
-            addLog('QR 코드 생성 성공', 'success');
-        } else {
-            const error = await response.text();
-            addLog('QR 코드 생성 실패: ' + error, 'error');
-        }
-    } catch (error) {
-        addLog('QR 코드 생성 오류: ' + error.message, 'error');
-    }
-}
-
-// QR 코드 표시
-function displayQRCode(data) {
-    const qrDisplay = document.getElementById('qr-display');
-    
-    if (data.qrCode) {
-        // Base64 이미지인 경우
-        qrDisplay.innerHTML = `<img src="${data.qrCode}" alt="QR Code" style="max-width: 300px;">`;
-    } else if (data.challengeId) {
-        // Challenge ID만 있는 경우
-        qrDisplay.innerHTML = `
-            <div style="color: #0f172a; text-align: center;">
-                <p>Challenge ID:</p>
-                <p style="font-size: 1.2rem; font-weight: bold;">${data.challengeId}</p>
-                <p style="margin-top: 10px; font-size: 0.9rem;">QR 코드 생성 중...</p>
-            </div>
-        `;
-    }
-    
-    // 상태 표시
-    const statusDiv = document.getElementById('qr-status');
-    statusDiv.textContent = 'QR 코드 생성됨 - 스캔 대기중...';
-}
-
-// QR 상태 모니터링
-function monitorQRStatus(challengeId) {
-    if (sseConnection) {
-        sseConnection.close();
-    }
-    
-    addLog(`QR 상태 모니터링 시작: ${challengeId}`, 'info');
-    
-    const eventSource = new EventSource(`/api/qr/sse/${challengeId}`);
-    sseConnection = eventSource;
-    
-    eventSource.onopen = () => {
-        addLog('SSE 연결 성공', 'success');
-    };
-    
-    eventSource.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            updateQRStatus(data);
-            addLog(`QR 상태 업데이트: ${data.status}`, 'info');
-        } catch (error) {
-            addLog('SSE 메시지 파싱 오류: ' + error.message, 'error');
-        }
-    };
-    
-    eventSource.onerror = (error) => {
-        addLog('SSE 연결 오류', 'error');
-        eventSource.close();
-        sseConnection = null;
-    };
-}
-
-// QR 상태 업데이트
-function updateQRStatus(data) {
-    const statusDiv = document.getElementById('qr-status');
-    
-    switch(data.status) {
-        case 'PENDING':
-            statusDiv.textContent = '⏳ QR 코드 스캔 대기중...';
-            statusDiv.style.color = '#f59e0b';
-            break;
-        case 'APPROVED':
-            statusDiv.textContent = '✅ QR 코드 승인됨!';
-            statusDiv.style.color = '#10b981';
-            if (data.token) {
-                statusDiv.textContent += ` (토큰: ${data.token.substring(0, 20)}...)`;
-            }
-            break;
-        case 'EXPIRED':
-            statusDiv.textContent = '❌ QR 코드 만료됨';
-            statusDiv.style.color = '#ef4444';
-            break;
-        case 'EXCHANGED':
-            statusDiv.textContent = '🔄 토큰 교환 완료';
-            statusDiv.style.color = '#2563eb';
-            break;
-        default:
-            statusDiv.textContent = `상태: ${data.status}`;
-    }
-}

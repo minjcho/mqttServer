@@ -12,16 +12,12 @@
             <h1>🚀 실시간 IoT 모니터링 대시보드</h1>
             <div class="status-bar">
                 <span class="status-item">
-                    <span class="status-dot" id="mqtt-status"></span>
-                    MQTT
-                </span>
-                <span class="status-item">
                     <span class="status-dot" id="ws-status"></span>
                     WebSocket
                 </span>
                 <span class="status-item">
-                    <span class="status-dot" id="api-status"></span>
-                    API
+                    <span class="status-dot" id="mqtt-status"></span>
+                    MQTT
                 </span>
                 <span class="timestamp" id="current-time"></span>
             </div>
@@ -32,13 +28,6 @@
             <section class="card">
                 <h2>📊 서비스 상태</h2>
                 <div class="services-grid">
-                    <div class="service-card" id="qr-service">
-                        <div class="service-icon">🔐</div>
-                        <h3>QR Login System</h3>
-                        <p class="service-port">Port: 8090</p>
-                        <div class="service-status checking">확인중...</div>
-                        <button onclick="testQRService()">테스트</button>
-                    </div>
                     <div class="service-card" id="ws-service">
                         <div class="service-icon">🌐</div>
                         <h3>WebSocket Server</h3>
@@ -96,42 +85,17 @@
                 </div>
             </section>
 
-            <!-- QR 로그인 테스트 -->
-            <section class="card">
-                <h2>🔑 QR 로그인 테스트</h2>
-                <div class="qr-test">
-                    <button onclick="generateQR()" class="btn-primary">QR 코드 생성</button>
-                    <div id="qr-display" class="qr-container"></div>
-                    <div id="qr-status" class="qr-status"></div>
-                </div>
-            </section>
 
             <!-- API 엔드포인트 목록 -->
             <section class="card">
                 <h2>🔌 API 엔드포인트</h2>
                 <div class="api-endpoints">
                     <div class="endpoint-group">
-                        <h4>인증 API</h4>
-                        <ul>
-                            <li><code>POST /api/auth/signup</code> - 회원가입</li>
-                            <li><code>POST /api/auth/login</code> - 로그인</li>
-                            <li><code>POST /api/auth/refresh</code> - 토큰 갱신</li>
-                        </ul>
-                    </div>
-                    <div class="endpoint-group">
-                        <h4>QR 로그인 API</h4>
-                        <ul>
-                            <li><code>GET /api/qr/init</code> - QR 초기화</li>
-                            <li><code>POST /api/qr/approve</code> - QR 승인</li>
-                            <li><code>GET /api/qr/sse/{id}</code> - SSE 상태</li>
-                        </ul>
-                    </div>
-                    <div class="endpoint-group">
                         <h4>WebSocket & MQTT</h4>
                         <ul>
-                            <li><code>WS /coordinates</code> - 좌표 스트림</li>
-                            <li><code>POST /api/mqtt/commands/{orinId}</code> - MQTT 명령</li>
-                            <li><code>WS /api/mqtt</code> - MQTT 브릿지</li>
+                            <li><code>WS /coordinates</code> - 좌표 스트림 (SockJS)</li>
+                            <li><code>POST /api/mqtt/commands/{orinId}</code> - MQTT 명령 전송</li>
+                            <li><code>TCP :3123</code> - MQTT Broker 직접 연결</li>
                         </ul>
                     </div>
                 </div>
