@@ -31,7 +31,7 @@ echo -e "\n${BLUE}[1/5] 처리량 테스트 (100만 메시지)${NC}"
 echo -e "\n[처리량 테스트]" >> $RESULT_FILE
 
 TOPIC="${TOPIC_PREFIX}-throughput"
-docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic $TOPIC \
     --partitions 6 --replication-factor 1 \
     --config compression.type=lz4 \
@@ -42,7 +42,7 @@ echo "테스트 실행 중..."
 START_TIME=$(date +%s)
 
 # Producer 성능 테스트
-docker exec kafka kafka-producer-perf-test.sh \
+docker exec kafka kafka-producer-perf-test \
     --topic $TOPIC \
     --num-records 1000000 \
     --record-size 1024 \
@@ -62,13 +62,13 @@ echo -e "\n${BLUE}[2/5] 지연시간 테스트 (10만 메시지)${NC}"
 echo -e "\n[지연시간 테스트]" >> $RESULT_FILE
 
 TOPIC="${TOPIC_PREFIX}-latency"
-docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic $TOPIC \
     --partitions 3 --replication-factor 1 \
     --if-not-exists
 
 echo "낮은 지연시간 설정으로 테스트..."
-docker exec kafka kafka-producer-perf-test.sh \
+docker exec kafka kafka-producer-perf-test \
     --topic $TOPIC \
     --num-records 100000 \
     --record-size 512 \
@@ -84,7 +84,7 @@ echo -e "\n${BLUE}[3/5] Consumer 처리량 테스트${NC}"
 echo -e "\n[Consumer 테스트]" >> $RESULT_FILE
 
 echo "Consumer 테스트 실행 중..."
-docker exec kafka kafka-consumer-perf-test.sh \
+docker exec kafka kafka-consumer-perf-test \
     --bootstrap-server localhost:9092 \
     --topic $TOPIC \
     --messages 100000 \
@@ -96,7 +96,7 @@ echo -e "\n${BLUE}[4/5] 동시 Producer 테스트 (10개 병렬)${NC}"
 echo -e "\n[동시성 테스트]" >> $RESULT_FILE
 
 TOPIC="${TOPIC_PREFIX}-concurrent"
-docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic $TOPIC \
     --partitions 10 --replication-factor 1 \
     --if-not-exists
@@ -122,7 +122,7 @@ echo -e "\n${BLUE}[5/5] End-to-End 지연시간 측정${NC}"
 echo -e "\n[End-to-End 지연시간]" >> $RESULT_FILE
 
 TOPIC="${TOPIC_PREFIX}-e2e"
-docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
     --create --topic $TOPIC \
     --partitions 1 --replication-factor 1 \
     --if-not-exists
@@ -134,11 +134,11 @@ for i in {1..10}; do
     
     # 메시지 전송
     echo "test-message-$i" | docker exec -i kafka \
-        kafka-console-producer.sh --broker-list localhost:9092 --topic $TOPIC
+        kafka-console-producer --broker-list localhost:9092 --topic $TOPIC
     
     # 메시지 수신
     docker exec kafka timeout 1 \
-        kafka-console-consumer.sh --bootstrap-server localhost:9092 \
+        kafka-console-consumer --bootstrap-server localhost:9092 \
         --topic $TOPIC --from-beginning --max-messages 1 > /dev/null 2>&1
     
     END_NS=$(date +%s%N)
@@ -156,9 +156,9 @@ docker stats kafka --no-stream | tee -a $RESULT_FILE
 echo -e "\n${BLUE}[토픽 상태]${NC}"
 echo -e "\n[토픽 통계]" >> $RESULT_FILE
 
-for topic in $(docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list | grep $TOPIC_PREFIX); do
+for topic in $(docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep $TOPIC_PREFIX); do
     echo "토픽: $topic" | tee -a $RESULT_FILE
-    docker exec kafka kafka-log-dirs.sh --bootstrap-server localhost:9092 \
+    docker exec kafka kafka-log-dirs --bootstrap-server localhost:9092 \
         --topic-list $topic --describe 2>/dev/null | grep -E "topic|size" | head -5 | tee -a $RESULT_FILE
 done
 
@@ -173,8 +173,8 @@ echo ""
 read -p "테스트 토픽을 삭제하시겠습니까? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    for topic in $(docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list | grep $TOPIC_PREFIX); do
-        docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic $topic
+    for topic in $(docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep $TOPIC_PREFIX); do
+        docker exec kafka kafka-topics --bootstrap-server localhost:9092 --delete --topic $topic
     done
     echo "테스트 토픽 삭제 완료"
 fi

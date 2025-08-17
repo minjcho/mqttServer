@@ -41,7 +41,7 @@ create_topic() {
     local topic=$1
     local partitions=${2:-6}
     
-    docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+    docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
         --create --topic $topic \
         --partitions $partitions \
         --replication-factor 1 \
@@ -58,7 +58,7 @@ run_producer() {
     local name=$5
     
     echo -e "${GREEN}▶ $name 실행 중...${NC}"
-    docker exec kafka kafka-producer-perf-test.sh \
+    docker exec kafka kafka-producer-perf-test \
         --topic $topic \
         --num-records $records \
         --record-size $size \
@@ -178,7 +178,7 @@ scenario_realistic() {
     
     # 작은 이벤트 (100 bytes, 높은 빈도)
     echo "  • 작은 이벤트 스트림"
-    docker exec -d kafka kafka-producer-perf-test.sh \
+    docker exec -d kafka kafka-producer-perf-test \
         --topic events-small \
         --num-records 1000000 \
         --record-size 100 \
@@ -187,7 +187,7 @@ scenario_realistic() {
     
     # 중간 크기 (1KB, 중간 빈도)
     echo "  • 중간 크기 메시지"
-    docker exec -d kafka kafka-producer-perf-test.sh \
+    docker exec -d kafka kafka-producer-perf-test \
         --topic events-medium \
         --num-records 500000 \
         --record-size 1024 \
@@ -196,7 +196,7 @@ scenario_realistic() {
     
     # 큰 페이로드 (10KB, 낮은 빈도)
     echo "  • 큰 페이로드"
-    docker exec -d kafka kafka-producer-perf-test.sh \
+    docker exec -d kafka kafka-producer-perf-test \
         --topic events-large \
         --num-records 100000 \
         --record-size 10240 \
@@ -205,7 +205,7 @@ scenario_realistic() {
     
     # 배치 처리 (버스트)
     echo "  • 배치 버스트"
-    docker exec -d kafka kafka-producer-perf-test.sh \
+    docker exec -d kafka kafka-producer-perf-test \
         --topic events-batch \
         --num-records 200000 \
         --record-size 2048 \
@@ -221,7 +221,7 @@ scenario_realistic() {
     echo -e "\n${BLUE}토픽별 통계:${NC}"
     for topic in events-small events-medium events-large events-batch; do
         echo -e "${YELLOW}$topic:${NC}"
-        docker exec kafka kafka-log-dirs.sh --bootstrap-server localhost:9092 \
+        docker exec kafka kafka-log-dirs --bootstrap-server localhost:9092 \
             --topic-list $topic --describe 2>/dev/null | grep size | head -1
     done | tee $RESULT_DIR/realistic.txt
     
@@ -247,7 +247,7 @@ scenario_stress() {
     # 20개 프로듀서 동시 실행 (무제한 처리량)
     for i in {1..20}; do
         echo "  Producer $i 시작"
-        docker exec -d kafka kafka-producer-perf-test.sh \
+        docker exec -d kafka kafka-producer-perf-test \
             --topic $TOPIC \
             --num-records 1000000 \
             --record-size 1024 \
@@ -333,8 +333,8 @@ echo ""
 read -p "테스트 토픽을 모두 삭제하시겠습니까? (y/n): " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    for topic in $(docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list | grep scenario-); do
-        docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --delete --topic $topic 2>/dev/null || true
+    for topic in $(docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list | grep scenario-); do
+        docker exec kafka kafka-topics --bootstrap-server localhost:9092 --delete --topic $topic 2>/dev/null || true
     done
     echo "테스트 토픽 삭제 완료"
 fi

@@ -35,7 +35,7 @@ monitor_kafka() {
         
         # 1. Kafka 브로커 상태
         echo -e "${BOLD}${GREEN}[브로커 상태]${NC}"
-        BROKER_STATUS=$(docker exec kafka kafka-broker-api-versions.sh --bootstrap-server localhost:9092 2>&1 | head -1)
+        BROKER_STATUS=$(docker exec kafka kafka-broker-api-versions --bootstrap-server localhost:9092 2>&1 | head -1)
         if [[ $BROKER_STATUS == *"ApiVersion"* ]]; then
             echo -e "  ✅ Kafka 브로커: ${GREEN}정상${NC}"
         else
@@ -44,7 +44,7 @@ monitor_kafka() {
         
         # 2. 토픽 목록 및 파티션 수
         echo -e "\n${BOLD}${GREEN}[토픽 통계]${NC}"
-        TOPICS=$(docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null)
+        TOPICS=$(docker exec kafka kafka-topics --bootstrap-server localhost:9092 --list 2>/dev/null)
         TOPIC_COUNT=$(echo "$TOPICS" | wc -l)
         echo -e "  📊 총 토픽 수: ${BOLD}${TOPIC_COUNT}${NC}"
         
@@ -52,7 +52,7 @@ monitor_kafka() {
         echo -e "  ${CYAN}주요 토픽:${NC}"
         echo "$TOPICS" | head -5 | while read topic; do
             if [ -n "$topic" ]; then
-                PARTITIONS=$(docker exec kafka kafka-topics.sh --bootstrap-server localhost:9092 \
+                PARTITIONS=$(docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
                     --describe --topic $topic 2>/dev/null | grep -c "Partition:")
                 echo -e "    • $topic (파티션: $PARTITIONS)"
             fi
@@ -70,7 +70,7 @@ monitor_kafka() {
         CURRENT_COUNT=0
         for topic in $(echo "$TOPICS" | head -5); do
             if [ -n "$topic" ]; then
-                OFFSET=$(docker exec kafka kafka-run-class.sh kafka.tools.GetOffsetShell \
+                OFFSET=$(docker exec kafka kafka-run-class kafka.tools.GetOffsetShell \
                     --broker-list localhost:9092 --topic $topic --time -1 2>/dev/null | \
                     awk -F: '{sum += $3} END {print sum}')
                 CURRENT_COUNT=$((CURRENT_COUNT + ${OFFSET:-0}))
@@ -93,7 +93,7 @@ monitor_kafka() {
         
         # 4. Consumer Group 상태
         echo -e "\n${BOLD}${GREEN}[Consumer Groups]${NC}"
-        CONSUMER_GROUPS=$(docker exec kafka kafka-consumer-groups.sh \
+        CONSUMER_GROUPS=$(docker exec kafka kafka-consumer-groups \
             --bootstrap-server localhost:9092 --list 2>/dev/null)
         
         if [ -z "$CONSUMER_GROUPS" ]; then
@@ -101,7 +101,7 @@ monitor_kafka() {
         else
             echo "$CONSUMER_GROUPS" | head -3 | while read group; do
                 if [ -n "$group" ]; then
-                    LAG=$(docker exec kafka kafka-consumer-groups.sh \
+                    LAG=$(docker exec kafka kafka-consumer-groups \
                         --bootstrap-server localhost:9092 --describe --group $group 2>/dev/null | \
                         grep -E "LAG" | awk '{sum += $5} END {print sum}')
                     
