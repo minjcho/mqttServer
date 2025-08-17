@@ -37,7 +37,7 @@ class DataQualityTest:
             bootstrap_servers=self.bootstrap_servers,
             enable_idempotence=True,  # 중요: 중복 방지
             acks='all',
-            max_in_flight_requests_per_connection=5,
+            max_in_flight_requests_per_connection=1,  # idempotence 위해 반드시 1로 설정
             retries=10,
             value_serializer=lambda v: json.dumps(v).encode()
         )
