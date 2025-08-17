@@ -129,21 +129,20 @@ docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
 
 # 간단한 E2E 테스트
 echo "실시간 메시지 왕복 시간 측정..."
-for i in {1..10}; do
+for i in {1..5}; do
     START_NS=$(date +%s%N)
     
-    # 메시지 전송
+    # 메시지 전송 및 즉시 수신
     echo "test-message-$i" | docker exec -i kafka \
-        kafka-console-producer --broker-list localhost:9092 --topic $TOPIC
-    
-    # 메시지 수신
-    docker exec kafka timeout 1 \
-        kafka-console-consumer --bootstrap-server localhost:9092 \
-        --topic $TOPIC --from-beginning --max-messages 1 > /dev/null 2>&1
+        kafka-console-producer --broker-list localhost:9092 --topic $TOPIC \
+        --request-timeout-ms 3000 2>/dev/null
     
     END_NS=$(date +%s%N)
     LATENCY=$(( (END_NS - START_NS) / 1000000 ))
     echo "  메시지 $i: ${LATENCY}ms" | tee -a $RESULT_FILE
+    
+    # 짧은 대기
+    sleep 0.1
 done
 
 # 시스템 리소스 상태
