@@ -13,6 +13,12 @@ Nginx (Port 80/443)
 ├── /api/auth/* → QR Login System (8090)
 ├── /api/qr/* → QR Login System (8090)
 ├── /api/user/* → QR Login System (8090)
+├── /api/map-upload/* → SmartAir Spring Boot (8080)
+├── /api/map-data/* → SmartAir Spring Boot (8080)
+├── /api/sensor-data/* → SmartAir Spring Boot (8080)
+├── /api/schedule/* → SmartAir Spring Boot (8080)
+├── /voice/* → FastAPI Voice Service (8000)
+├── /llm/* → FastAPI LLM Service (8000)
 ├── /ws/* → WebSocket Server (8081)
 ├── /mqtt/* → MQTT Broker (3123)
 └── / → Frontend (React/Vue)
@@ -72,6 +78,13 @@ Nginx (Port 80/443)
 │  │  │ (ECS/Fargate)  │ (ECS/Fargate)  │ (EC2/ECS)    │       │   │
 │  │  └──────┬──────┘  └──────┬──────┘  └──────┬───────┘       │   │
 │  │         │                │                 │                │   │
+│  │  ┌─────────────┐  ┌──────────────┐                        │   │
+│  │  │ SmartAir    │  │ FastAPI      │                        │   │
+│  │  │ Spring Boot │  │ Voice/LLM    │                        │   │
+│  │  │ Port: 8080  │  │ Port: 8000   │                        │   │
+│  │  │ (ECS/Fargate)  │ (ECS/Fargate) │                        │   │
+│  │  └──────┬──────┘  └──────┬───────┘                        │   │
+│  │         │                │                 │                │   │
 │  │  ┌──────▼────────────────▼─────────────────▼───────────┐   │   │
 │  │  │              Message Queue Layer                     │   │   │
 │  │  │  ┌────────────┐  ┌─────────────┐  ┌────────────┐   │   │
@@ -90,6 +103,13 @@ Nginx (Port 80/443)
 │  │  │ (RDS)        │  │ Port: 6378   │  │ Port: 6379   │     │   │
 │  │  │ Port: 5433   │  │ (ElastiCache)│  │ (ElastiCache)│     │   │
 │  │  └──────────────┘  └──────────────┘  └──────────────┘     │   │
+│  │                                                              │   │
+│  │  ┌──────────────┐                                          │   │
+│  │  │ PostgreSQL   │                                          │   │
+│  │  │ SmartAir DB  │                                          │   │
+│  │  │ Port: 5432   │                                          │   │
+│  │  │ (RDS)        │                                          │   │
+│  │  └──────────────┘                                          │   │
 │  │                                                              │   │
 │  └───────────────────────────────────────────────────────────────┘  │
 │                                                                      │
@@ -112,11 +132,15 @@ Nginx (Port 80/443)
   - Nginx Container
   - QR Login System
   - WebSocket Server
+  - SmartAir Spring Boot Service
+  - FastAPI Voice/LLM Service
   - Kafka Consumer
 - **EC2**: MQTT Broker (필요시)
 
 ### 데이터 스토리지
-- **RDS PostgreSQL**: QR Login 사용자 데이터
+- **RDS PostgreSQL**: 
+  - QR Login 사용자 데이터 (5433)
+  - SmartAir 센서/지도 데이터 (5432)
 - **ElastiCache Redis**: 
   - QR Login 캐시 (6378)
   - WebSocket 데이터 (6379)
@@ -144,6 +168,14 @@ upstream websocket_server {
 
 upstream mqtt_broker {
     server mosquitto:3123;
+}
+
+upstream smartair_app {
+    server smartair-app:8080;
+}
+
+upstream fastapi_service {
+    server my-fastapi-app:8000;
 }
 
 server {
@@ -191,6 +223,24 @@ server {
         proxy_set_header Connection "upgrade";
     }
     
+    # SmartAir Spring Boot API
+    location ~ ^/api/(map-upload|map-data|sensor-data|schedule)/ {
+        proxy_pass http://smartair_app;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
+    # FastAPI Voice/LLM Service
+    location ~ ^/(voice|llm)/ {
+        proxy_pass http://fastapi_service;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+    
     # Frontend
     location / {
         root /usr/share/nginx/html;
@@ -221,15 +271,28 @@ IoT Device → MQTT Broker → Telegraf → Kafka (MSK) → Consumer → Redis
 Client → CloudFront → ALB → Nginx → QR Login System (SSE) → Client
 ```
 
+### 5. SmartAir 센서 데이터 흐름
+```
+IoT Device → API → SmartAir Spring Boot → PostgreSQL (5432)
+```
+
+### 6. Voice/LLM 처리 흐름
+```
+Client → CloudFront → ALB → Nginx → FastAPI → LLM Processing → Client
+```
+
 ## 포트 매핑
 
 | 서비스 | 내부 포트 | Nginx 경로 | 설명 |
 |--------|-----------|------------|------|
 | Nginx | 80/443 | / | 리버스 프록시 |
-| QR Login | 8090 | /api/* | REST API |
+| QR Login | 8090 | /api/auth/*, /api/qr/*, /api/user/* | 인증 REST API |
+| SmartAir Spring Boot | 8080 | /api/map-*, /api/sensor-*, /api/schedule/* | IoT 관리 API |
+| FastAPI | 8000 | /voice/*, /llm/* | 음성/AI 처리 |
 | WebSocket | 8081 | /ws/* | 실시간 좌표 |
 | MQTT | 3123 | /mqtt | IoT 통신 |
-| PostgreSQL | 5433 | - | 데이터베이스 |
+| PostgreSQL (QR) | 5433 | - | QR 인증 DB |
+| PostgreSQL (SmartAir) | 5432 | - | 센서/지도 DB |
 | Redis (QR) | 6378 | - | 인증 캐시 |
 | Redis (WS) | 6379 | - | 좌표 캐시 |
 | Kafka | 9092 | - | 메시지 브로커 |
@@ -280,6 +343,8 @@ graph TB
         QR[QR Login System<br/>:8090]
         WS[WebSocket Server<br/>:8081]
         MQTT[MQTT Broker<br/>Mosquitto :3123]
+        SMART[SmartAir<br/>Spring Boot :8080]
+        FAST[FastAPI<br/>Voice/LLM :8000]
     end
     
     subgraph "Message Queue Layer"
@@ -290,6 +355,7 @@ graph TB
     
     subgraph "Data Layer"
         PG[(PostgreSQL<br/>:5433<br/>User Data)]
+        PG2[(PostgreSQL<br/>:5432<br/>SmartAir Data)]
         REDIS1[(Redis<br/>:6378<br/>QR/Auth Cache)]
         REDIS2[(Redis<br/>:6379<br/>Coordinate Cache)]
     end
@@ -300,13 +366,16 @@ graph TB
     IOT -->|MQTT| MQTT
     
     %% Nginx routing
-    NGINX -->|/api/*| QR
+    NGINX -->|/api/auth/*,/api/qr/*| QR
+    NGINX -->|/api/map-*,/api/sensor-*| SMART
+    NGINX -->|/voice/*,/llm/*| FAST
     NGINX -->|/ws/*| WS
     NGINX -->|/mqtt| MQTT
     
     %% Application to Data
     QR --> PG
     QR --> REDIS1
+    SMART --> PG2
     WS --> REDIS2
     
     %% Message flow
