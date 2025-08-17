@@ -17,14 +17,20 @@ docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
     --partitions 3 --replication-factor 1 \
     --if-not-exists
 
-# 3. 100개 메시지 전송
+# 3. 100개 메시지 전송 (배치로 한번에)
 echo -e "\n3. 100개 메시지 전송..."
+
+# 모든 메시지를 한 번에 생성하여 전송
+(
 for i in {1..100}; do
-    echo "{\"id\": $i, \"data\": \"test_$i\", \"timestamp\": $(date +%s)}" | \
-    docker exec -i kafka kafka-console-producer \
-        --broker-list localhost:9092 \
-        --topic data-test
+    echo "{\"id\": $i, \"data\": \"test_$i\", \"timestamp\": $(date +%s)}"
 done
+) | docker exec -i kafka kafka-console-producer \
+    --broker-list localhost:9092 \
+    --topic data-test \
+    --batch-size 100 \
+    --timeout 5000
+
 echo "✅ 100개 메시지 전송 완료"
 
 # 4. 메시지 수신 및 카운트
