@@ -457,7 +457,11 @@ class DataQualityTest:
         print("="*60)
 
 def main():
-    tester = DataQualityTest('localhost:9092')
+    import sys
+    # Docker 환경에서는 호스트 IP 사용, 로컬에서는 localhost
+    bootstrap_servers = sys.argv[1] if len(sys.argv) > 1 else 'localhost:9092'
+    print(f"Kafka 서버: {bootstrap_servers}")
+    tester = DataQualityTest(bootstrap_servers)
     
     # 모든 테스트 실행
     tests = [
