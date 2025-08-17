@@ -103,7 +103,7 @@ docker exec kafka kafka-topics --bootstrap-server localhost:9092 \
 
 echo "10개 Producer 동시 실행..."
 for i in {1..10}; do
-    docker exec -d kafka kafka-producer-perf-test.sh \
+    docker exec -d kafka kafka-producer-perf-test \
         --topic $TOPIC \
         --num-records 100000 \
         --record-size 1024 \
