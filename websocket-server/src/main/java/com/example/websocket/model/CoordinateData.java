@@ -14,7 +14,7 @@ public class CoordinateData {
     private String timestamp;
     
     @JsonProperty("source")
-    private String source; // "coordX" 또는 "coordY" topic에서 왔는지 구분
+    private String source;
     
     public CoordinateData() {}
     
@@ -24,8 +24,6 @@ public class CoordinateData {
         this.timestamp = timestamp;
         this.source = source;
     }
-    
-    // Getters and Setters
     public Double getCoordX() {
         return coordX;
     }

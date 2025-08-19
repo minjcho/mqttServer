@@ -18,10 +18,7 @@ public class CoordinateWebSocketHandler extends TextWebSocketHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinateWebSocketHandler.class);
     
-    // Thread-safe set to store active WebSocket sessions
     private final CopyOnWriteArraySet<WebSocketSession> sessions = new CopyOnWriteArraySet<>();
-    
-    // Thread-safe map to store session -> ORIN ID mapping
     private final ConcurrentHashMap<String, String> sessionOrinMap = new ConcurrentHashMap<>();
     
     private final CoordinateService coordinateService;
@@ -34,7 +31,6 @@ public class CoordinateWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         sessions.add(session);
         
-        // URL에서 ORIN ID 파라미터 추출
         String orinId = extractOrinIdFromSession(session);
         if (orinId != null) {
             sessionOrinMap.put(session.getId(), orinId);
@@ -44,7 +40,6 @@ public class CoordinateWebSocketHandler extends TextWebSocketHandler {
         }
         logger.info("Total active sessions: {}", sessions.size());
         
-        // 연결 시 환영 메시지 전송
         String welcomeMessage = String.format(
             "{\"type\":\"connected\",\"message\":\"Connected to coordinate stream\",\"orinId\":\"%s\"}", 
             orinId != null ? orinId : "all"
@@ -63,9 +58,6 @@ public class CoordinateWebSocketHandler extends TextWebSocketHandler {
     @Override
     public void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         logger.debug("Received message from {}: {}", session.getId(), message.getPayload());
-        
-        // 클라이언트로부터 메시지를 받았을 때의 처리
-        // 현재는 단순히 로깅만 하지만, 필요에 따라 명령 처리 로직 추가 가능
         String payload = message.getPayload();
         
         if ("ping".equals(payload)) {
@@ -89,30 +81,23 @@ public class CoordinateWebSocketHandler extends TextWebSocketHandler {
         }
 
         logger.debug("Broadcasting to sessions subscribed to ORIN {}: {}", orinId, coordinateData);
-        
-        // 비활성 세션 제거를 위한 리스트
         sessions.removeIf(session -> {
             try {
                 if (!session.isOpen()) {
                     logger.warn("Removing closed session: {}", session.getId());
                     sessionOrinMap.remove(session.getId());
-                    return true; // 세션 제거
+                    return true;
                 }
-                
-                // 세션의 ORIN ID 확인
                 String sessionOrinId = sessionOrinMap.get(session.getId());
-                
-                // ORIN ID가 매치하거나 전체 데이터를 구독하는 경우 전송
                 if (sessionOrinId == null || sessionOrinId.equals(orinId)) {
                     session.sendMessage(new TextMessage(coordinateData));
                 }
-                
-                return false; // 세션 유지
+                return false;
                 
             } catch (Exception e) {
                 logger.error("Error sending message to session {}: {}", session.getId(), e.getMessage());
                 sessionOrinMap.remove(session.getId());
-                return true; // 오류 발생 시 세션 제거
+                return true;
             }
         });
     }
