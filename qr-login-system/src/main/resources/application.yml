@@ -13,21 +13,16 @@ spring:
         min-idle: 0
         max-wait: -1ms
 
-  security:
-    user:
-      name: admin
-      password: admin
-
 server:
   port: 8090
   forward-headers-strategy: framework
 
 jwt:
-  secret: "ThisIsAVeryLongSecretKeyForJWTSigningAndItShouldBeKeptSecureAndNotSharedWithAnyone12345678901234567890"
+  secret: ${JWT_SECRET:please-change-this-secret-key-in-production-environment-min-256-bits-required}
   access-token:
-    expiration: 900000    # 15 minutes in milliseconds
+    expiration: ${JWT_ACCESS_TOKEN_EXPIRATION:900000}    # 15 minutes in milliseconds
   refresh-token:
-    expiration: 604800000  # 7 days in milliseconds
+    expiration: ${JWT_REFRESH_TOKEN_EXPIRATION:604800000}  # 7 days in milliseconds
   issuer: qr-login-system
 
 qr:

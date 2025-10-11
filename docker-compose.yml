@@ -127,9 +127,12 @@ services:
       - DATABASE_PORT=5433
       - DATABASE_NAME=qrlogin
       - DATABASE_USER=qrlogin
-      - DATABASE_PASSWORD=qrlogin123
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-qrlogin123}
       - SPRING_REDIS_HOST=qr-redis
       - SPRING_REDIS_PORT=6378
+      - JWT_SECRET=${JWT_SECRET:-please-change-this-secret-key-in-production-environment-min-256-bits-required}
+      - JWT_ACCESS_TOKEN_EXPIRATION=${JWT_ACCESS_TOKEN_EXPIRATION:-900000}
+      - JWT_REFRESH_TOKEN_EXPIRATION=${JWT_REFRESH_TOKEN_EXPIRATION:-604800000}
       - JAVA_OPTS=-Xmx512m -Xms256m -Djava.security.egd=file:/dev/./urandom
     depends_on:
       db:

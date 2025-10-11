@@ -5,6 +5,7 @@ import logging
 from typing import Dict, Any
 import paho.mqtt.client as mqtt
 from kafka import KafkaProducer
+from config import Config
 
 # 로깅 설정
 logging.basicConfig(
@@ -15,17 +16,18 @@ logger = logging.getLogger(__name__)
 
 class MQTTKafkaBridge:
     def __init__(self):
-        # MQTT 설정
-        self.mqtt_host = "mosquitto"
-        self.mqtt_port = 3123
-        self.mqtt_topics = [
-            "sensors/+/coordinates",  # 통합 좌표 토픽 추가
-        ]
-        
-        # Kafka 설정
-        self.kafka_brokers = ["kafka:9092"]
-        self.kafka_topic = "mqtt-messages"
-        
+        # Validate configuration
+        Config.validate()
+
+        # MQTT 설정 (환경변수에서 로드)
+        self.mqtt_host = Config.MQTT_HOST
+        self.mqtt_port = Config.MQTT_PORT
+        self.mqtt_topics = Config.MQTT_TOPICS
+
+        # Kafka 설정 (환경변수에서 로드)
+        self.kafka_brokers = Config.KAFKA_BROKERS
+        self.kafka_topic = Config.KAFKA_TOPIC
+
         # 클라이언트 초기화
         self.mqtt_client = None
         self.kafka_producer = None
@@ -37,9 +39,9 @@ class MQTTKafkaBridge:
                 bootstrap_servers=self.kafka_brokers,
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 key_serializer=lambda v: v.encode('utf-8') if v else None,
-                acks='all',
-                retries=3,
-                retry_backoff_ms=100
+                acks=Config.KAFKA_ACKS,
+                retries=Config.KAFKA_RETRIES,
+                retry_backoff_ms=Config.KAFKA_RETRY_BACKOFF_MS
             )
             logger.info("Kafka producer connected successfully")
             return True
