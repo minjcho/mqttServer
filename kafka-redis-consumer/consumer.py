@@ -40,29 +40,23 @@ def main():
     
     topics = ['mqtt-messages']
     
-    # Kafka Consumer 설정 - Consumer Group 없이
+    # Kafka Consumer 설정 - Consumer Group 적용
     try:
-        from kafka import TopicPartition
-        
         consumer = KafkaConsumer(
+            'mqtt-messages',  # 토픽 직접 지정
             bootstrap_servers=[kafka_servers],
-            auto_offset_reset='earliest',
-            enable_auto_commit=False,  # Consumer Group 없이 수동 관리
+            group_id='coordinate-consumer-group',  # Consumer Group 적용
+            auto_offset_reset='latest',  # 최신 메시지부터 (실시간 우선)
+            enable_auto_commit=True,  # 자동 오프셋 커밋
+            auto_commit_interval_ms=5000,  # 5초마다 커밋
+            fetch_min_bytes=1,  # 즉시 가져오기
+            fetch_max_wait_ms=500,  # 최대 0.5초 대기
+            max_poll_records=500,  # 배치 500개
             value_deserializer=None,  # Raw bytes를 받아서 수동으로 처리
             consumer_timeout_ms=1000  # 1초 타임아웃
         )
-        
-        # 수동으로 모든 파티션에 할당 (100개 파티션)
-        topic_partitions = [
-            TopicPartition('mqtt-messages', i) for i in range(100)
-        ]
-        consumer.assign(topic_partitions)
-        
-        # 최신 메시지부터 읽기 (실시간 성능 우선)
-        for tp in topic_partitions:
-            consumer.seek_to_end(tp)
-        
-        logger.info(f"✅ Kafka consumer connected to {kafka_servers} (Consumer Group 없음)")
+
+        logger.info(f"✅ Kafka consumer connected to {kafka_servers} (group: coordinate-consumer-group)")
     except Exception as e:
         logger.error(f"❌ Failed to connect to Kafka: {e}")
         return
