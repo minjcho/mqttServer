@@ -12,7 +12,26 @@ from datetime import datetime
 from kafka import KafkaConsumer
 import redis
 
-# 단순한 로깅 설정
+# Constants
+KAFKA_TOPIC = 'mqtt-messages'
+CONSUMER_GROUP_ID = 'coordinate-consumer-group'
+AUTO_OFFSET_RESET = 'latest'
+AUTO_COMMIT_INTERVAL_MS = 5000
+FETCH_MIN_BYTES = 1
+FETCH_MAX_WAIT_MS = 500
+MAX_POLL_RECORDS = 500
+CONSUMER_TIMEOUT_MS = 1000
+POLL_TIMEOUT_MS = 500
+
+REDIS_DB = 0
+REDIS_KEY_PREFIX_MESSAGE = 'message'
+REDIS_KEY_PREFIX_ORIN = 'orin'
+REDIS_KEY_SUFFIX_LATEST = 'latest'
+REDIS_KEY_MESSAGE_COUNT = 'message_count'
+
+MQTT_TOPIC_PATTERN = r'sensors/([^/]+)/'
+
+# 로깅 설정
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
@@ -23,9 +42,9 @@ def extract_orin_id(mqtt_topic):
     """MQTT 토픽에서 ORIN ID 추출 (예: sensors/ORIN001/coordinates -> ORIN001)"""
     if not mqtt_topic:
         return None
-    
+
     # sensors/ORIN001/coordinates 패턴에서 ORIN ID 추출
-    match = re.search(r'sensors/([^/]+)/', mqtt_topic)
+    match = re.search(MQTT_TOPIC_PATTERN, mqtt_topic)
     if match:
         return match.group(1)
     return None
@@ -38,25 +57,23 @@ def main():
     redis_host = os.getenv('REDIS_HOST', 'redis')
     redis_port = int(os.getenv('REDIS_PORT', '6379'))
     
-    topics = ['mqtt-messages']
-    
     # Kafka Consumer 설정 - Consumer Group 적용
     try:
         consumer = KafkaConsumer(
-            'mqtt-messages',  # 토픽 직접 지정
+            KAFKA_TOPIC,
             bootstrap_servers=[kafka_servers],
-            group_id='coordinate-consumer-group',  # Consumer Group 적용
-            auto_offset_reset='latest',  # 최신 메시지부터 (실시간 우선)
-            enable_auto_commit=True,  # 자동 오프셋 커밋
-            auto_commit_interval_ms=5000,  # 5초마다 커밋
-            fetch_min_bytes=1,  # 즉시 가져오기
-            fetch_max_wait_ms=500,  # 최대 0.5초 대기
-            max_poll_records=500,  # 배치 500개
+            group_id=CONSUMER_GROUP_ID,
+            auto_offset_reset=AUTO_OFFSET_RESET,
+            enable_auto_commit=True,
+            auto_commit_interval_ms=AUTO_COMMIT_INTERVAL_MS,
+            fetch_min_bytes=FETCH_MIN_BYTES,
+            fetch_max_wait_ms=FETCH_MAX_WAIT_MS,
+            max_poll_records=MAX_POLL_RECORDS,
             value_deserializer=None,  # Raw bytes를 받아서 수동으로 처리
-            consumer_timeout_ms=1000  # 1초 타임아웃
+            consumer_timeout_ms=CONSUMER_TIMEOUT_MS
         )
 
-        logger.info(f"✅ Kafka consumer connected to {kafka_servers} (group: coordinate-consumer-group)")
+        logger.info(f"✅ Kafka consumer connected to {kafka_servers} (group: {CONSUMER_GROUP_ID})")
     except Exception as e:
         logger.error(f"❌ Failed to connect to Kafka: {e}")
         return
@@ -66,7 +83,7 @@ def main():
         redis_client = redis.Redis(
             host=redis_host,
             port=redis_port,
-            db=0,
+            db=REDIS_DB,
             decode_responses=True
         )
         redis_client.ping()
@@ -81,7 +98,7 @@ def main():
     try:
         while True:
             # Poll for messages - 더 짧은 timeout으로 더 자주 확인
-            message_batch = consumer.poll(timeout_ms=500)
+            message_batch = consumer.poll(timeout_ms=POLL_TIMEOUT_MS)
             
             if message_batch:
                 logger.info(f"📬 Received message batch with {len(message_batch)} topic-partitions")
@@ -125,7 +142,7 @@ def main():
                             # Redis에 저장
                             try:
                                 # 기본 메시지 저장
-                                key = f"message:{message.topic}:{message.partition}:{message.offset}"
+                                key = f"{REDIS_KEY_PREFIX_MESSAGE}:{message.topic}:{message.partition}:{message.offset}"
                                 data = {
                                     "topic": message.topic,
                                     "message": message_str,
@@ -137,7 +154,7 @@ def main():
                                 
                                 # ORIN ID별 최신 데이터 저장
                                 if orin_id and isinstance(message_data, dict) and 'fields' in message_data:
-                                    orin_key = f"orin:{orin_id}:latest"
+                                    orin_key = f"{REDIS_KEY_PREFIX_ORIN}:{orin_id}:{REDIS_KEY_SUFFIX_LATEST}"
                                     
                                     # fields.value에서 실제 좌표 데이터 추출
                                     try:
@@ -156,9 +173,9 @@ def main():
                                         logger.error(f"❌ Failed to parse coordinate data for {orin_id}: {e}")
                                 
                                 # 카운터 증가
-                                redis_client.incr("message_count")
+                                redis_client.incr(REDIS_KEY_MESSAGE_COUNT)
                                 if orin_id:
-                                    redis_client.incr(f"orin:{orin_id}:count")
+                                    redis_client.incr(f"{REDIS_KEY_PREFIX_ORIN}:{orin_id}:count")
                                 
                                 logger.info(f"✅ Saved to Redis with key: {key}")
                                 
