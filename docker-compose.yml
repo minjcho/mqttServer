@@ -13,6 +13,15 @@ services:
       - mosquitto_config:/mosquitto/config
     networks:
       - mqtt_network
+    entrypoint: >
+      sh -c "
+      if [ ! -s /mosquitto/config/passwd ]; then
+        echo 'Initializing MQTT password file...';
+        mosquitto_passwd -b /mosquitto/config/passwd $${MQTT_USERNAME:-mqttuser} $${MQTT_PASSWORD:-mqttpass};
+        echo 'MQTT user created';
+      fi;
+      exec /docker-entrypoint.sh mosquitto -c /mosquitto/config/mosquitto.conf
+      "
 
   kafka:
     build:
