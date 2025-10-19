@@ -7,6 +7,12 @@ services:
     container_name: mosquitto
     ports:
       - "3123:3123"
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME:-mqttuser}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-mqttpass}
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_config:/mosquitto/config
     networks:
       - mqtt_network
 
@@ -54,6 +60,9 @@ services:
         condition: service_healthy
       mosquitto:
         condition: service_started
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME:-mqttuser}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-mqttpass}
     restart: unless-stopped
     networks:
       - mqtt_network
@@ -191,6 +200,8 @@ services:
     depends_on:
       redis:
         condition: service_started
+      mosquitto:
+        condition: service_started
     ports:
       - "8081:8081"
     restart: unless-stopped
@@ -199,6 +210,8 @@ services:
     environment:
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
+      - MQTT_USERNAME=${MQTT_USERNAME:-mqttuser}
+      - MQTT_PASSWORD=${MQTT_PASSWORD:-mqttpass}
 
   # QR Login Frontend - 주석 처리 (npm run dev로 별도 실행)
   # frontend:
@@ -215,6 +228,10 @@ services:
   #     - mqtt_network
 
 volumes:
+  mosquitto_data:
+    driver: local
+  mosquitto_config:
+    driver: local
   kafka_data:
   redis_data:
   postgres_data:
