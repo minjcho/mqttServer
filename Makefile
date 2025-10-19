@@ -2,6 +2,7 @@
 .PHONY: init-topics list-topics test-mqtt consume-messages setup
 .PHONY: redis redis-cli redis-api-test test-redis-pipeline
 .PHONY: websocket websocket-test test-websocket-pipeline all fclean re
+.PHONY: test test-integration test-python test-mqtt-auth test-pipeline-e2e test-all test-setup test-env test-clean test-ci
 
 help:
 	@echo "Available commands:"
@@ -33,6 +34,18 @@ help:
 	@echo "  test-redis-pipeline - 전체 MQTT → Kafka → Redis 파이프라인 테스트"
 	@echo "  test-websocket-pipeline - 전체 MQTT → Kafka → Redis → WebSocket 파이프라인 테스트"
 	@echo "  setup              - 전체 시스템 설정 및 시작"
+	@echo ""
+	@echo "Testing commands:"
+	@echo "  test               - 통합 테스트 실행 (기본)"
+	@echo "  test-all           - 모든 테스트 실행 (Bash + Python)"
+	@echo "  test-integration   - Bash 통합 테스트 실행"
+	@echo "  test-python        - Python 테스트 실행"
+	@echo "  test-mqtt-auth     - MQTT 인증 테스트만"
+	@echo "  test-pipeline-e2e  - 파이프라인 E2E 테스트만"
+	@echo "  test-setup         - 테스트 의존성 설치"
+	@echo "  test-env           - 테스트 환경 설정"
+	@echo "  test-clean         - 테스트 환경 정리"
+	@echo "  test-ci            - CI/CD 시뮬레이션"
 
 # 기본 Docker Compose 명령어들
 all: build up
@@ -186,3 +199,82 @@ setup:
 	@echo "  - WebSocket UI:    http://localhost:8081"
 	@echo ""
 	@echo "Test the complete pipeline with: make test-websocket-pipeline"
+
+# ===========================================
+# 통합 테스트 명령어들
+# ===========================================
+
+# 기본 테스트 (빠른 통합 테스트)
+test: test-integration
+	@echo ""
+	@echo "✅ Integration test completed"
+	@echo "Run 'make test-all' for full test suite"
+
+# Bash 통합 테스트
+test-integration:
+	@echo "=== Running Bash Integration Tests ==="
+	@chmod +x tests/integration_test.sh
+	./tests/integration_test.sh
+
+# Python 테스트
+test-python:
+	@echo "=== Running Python Tests ==="
+	@command -v pytest >/dev/null 2>&1 || { echo "pytest not found. Run 'make test-setup' first"; exit 1; }
+	pytest tests/ -v --tb=short
+
+# MQTT 인증 테스트만
+test-mqtt-auth:
+	@echo "=== Running MQTT Authentication Tests ==="
+	@command -v pytest >/dev/null 2>&1 || { echo "pytest not found. Run 'make test-setup' first"; exit 1; }
+	pytest tests/test_mqtt_auth.py -v
+
+# 파이프라인 E2E 테스트만
+test-pipeline-e2e:
+	@echo "=== Running Pipeline E2E Tests ==="
+	@command -v pytest >/dev/null 2>&1 || { echo "pytest not found. Run 'make test-setup' first"; exit 1; }
+	pytest tests/test_pipeline.py -v
+
+# 모든 테스트 (Bash + Python)
+test-all: test-integration test-python
+	@echo ""
+	@echo "✅ All tests completed successfully!"
+
+# 테스트 의존성 설치
+test-setup:
+	@echo "=== Installing Test Dependencies ==="
+	@command -v pip3 >/dev/null 2>&1 || { echo "pip3 not found. Please install Python 3"; exit 1; }
+	pip3 install -r tests/requirements-test.txt
+	@echo "✅ Test dependencies installed"
+
+# 테스트 환경 설정
+test-env:
+	@echo "=== Setting Up Test Environment ==="
+	@if [ ! -f .env.test ]; then echo "❌ .env.test not found"; exit 1; fi
+	cp .env.test .env
+	@echo "✅ Using test environment configuration"
+	docker compose down -v
+	docker compose up -d
+	@echo "⏳ Waiting for services to be ready..."
+	@sleep 30
+	@echo "✅ Test environment ready"
+
+# 테스트 환경 정리
+test-clean:
+	@echo "=== Cleaning Up Test Environment ==="
+	docker compose down -v
+	@echo "✅ Test environment cleaned"
+
+# CI/CD 시뮬레이션
+test-ci:
+	@echo "=== Running CI/CD Simulation ==="
+	@echo "1. Setting up test environment..."
+	@$(MAKE) test-env
+	@echo ""
+	@echo "2. Running all tests..."
+	@sleep 10
+	@$(MAKE) test-all
+	@echo ""
+	@echo "3. Cleaning up..."
+	@$(MAKE) test-clean
+	@echo ""
+	@echo "✅ CI/CD simulation completed"

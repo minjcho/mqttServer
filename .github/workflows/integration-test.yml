@@ -1,0 +1,144 @@
+name: Integration Test Pipeline
+
+on:
+  pull_request:
+    branches: [main, master, develop]
+  push:
+    branches: [main, master, develop]
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install test dependencies
+        run: |
+          pip install -r tests/requirements-test.txt
+
+      - name: Copy test environment file
+        run: |
+          cp .env.test .env
+          echo "✅ Using test environment configuration"
+
+      - name: Build Docker images
+        run: |
+          docker compose build
+
+      - name: Start services
+        run: |
+          docker compose up -d
+          echo "⏳ Waiting for services to be ready..."
+
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for Kafka..."
+          timeout 180 bash -c 'until docker compose exec -T kafka kafka-topics --bootstrap-server localhost:9092 --list; do sleep 5; done'
+
+          echo "Waiting for PostgreSQL..."
+          timeout 60 bash -c 'until docker compose exec -T qr-postgres pg_isready -U qrlogin_test -p 5433; do sleep 3; done'
+
+          echo "Waiting for Redis..."
+          timeout 30 bash -c 'until docker compose exec -T redis redis-cli ping; do sleep 2; done'
+
+          echo "Waiting for QR Redis..."
+          timeout 30 bash -c 'until docker compose exec -T qr-redis redis-cli -p 6378 ping; do sleep 2; done'
+
+          echo "✅ All core services are ready"
+
+      - name: Wait for application services
+        run: |
+          echo "Waiting for QR Login app..."
+          timeout 120 bash -c 'until curl -s http://localhost:8090/actuator/health | grep -q "UP"; do sleep 5; done' || echo "⚠️  QR Login app may not be fully ready"
+
+          echo "Giving services extra time to stabilize..."
+          sleep 20
+
+      - name: Show service status
+        run: |
+          echo "=== Docker Compose Service Status ==="
+          docker compose ps -a
+
+      - name: Run integration tests (Bash)
+        run: |
+          chmod +x tests/integration_test.sh
+          ./tests/integration_test.sh
+
+      - name: Run MQTT authentication tests
+        run: |
+          pytest tests/test_mqtt_auth.py -v --tb=short
+
+      - name: Run pipeline E2E tests
+        run: |
+          pytest tests/test_pipeline.py -v --tb=short
+
+      - name: Collect service logs on failure
+        if: failure()
+        run: |
+          echo "=== Mosquitto Logs ==="
+          docker compose logs mosquitto | tail -100
+
+          echo "=== Telegraf Logs ==="
+          docker compose logs telegraf | tail -100
+
+          echo "=== Kafka Logs ==="
+          docker compose logs kafka | tail -100
+
+          echo "=== Kafka Redis Consumer Logs ==="
+          docker compose logs kafka-redis-consumer | tail -100
+
+          echo "=== WebSocket Server Logs ==="
+          docker compose logs websocket-server | tail -100
+
+          echo "=== QR Login App Logs ==="
+          docker compose logs qr-login-app | tail -100
+
+      - name: Save logs as artifacts
+        if: always()
+        run: |
+          mkdir -p logs
+          docker compose logs > logs/docker-compose.log
+          docker compose logs mosquitto > logs/mosquitto.log
+          docker compose logs telegraf > logs/telegraf.log
+          docker compose logs kafka > logs/kafka.log
+          docker compose logs kafka-redis-consumer > logs/consumer.log
+          docker compose logs websocket-server > logs/websocket.log
+          docker compose logs qr-login-app > logs/qr-login.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-test-logs
+          path: logs/
+          retention-days: 7
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v
+          docker system prune -f
+
+  test-summary:
+    runs-on: ubuntu-latest
+    needs: integration-test
+    if: always()
+    steps:
+      - name: Check test results
+        run: |
+          if [ "${{ needs.integration-test.result }}" == "success" ]; then
+            echo "✅ All integration tests passed!"
+            exit 0
+          else
+            echo "❌ Integration tests failed!"
+            exit 1
+          fi

@@ -63,6 +63,9 @@ services:
     restart: unless-stopped
     networks:
       - mqtt_network
+    environment:
+      - MQTT_USERNAME=${MQTT_USERNAME}
+      - MQTT_PASSWORD=${MQTT_PASSWORD}
 
   # Redis 서버 (MQTT용)
   redis:
