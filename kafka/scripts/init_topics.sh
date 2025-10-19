@@ -17,8 +17,11 @@ echo "Creating mqtt-messages topic..."
 kafka-topics --bootstrap-server kafka:9092 \
     --create \
     --topic mqtt-messages \
-    --partitions 100 \
+    --partitions 12 \
     --replication-factor 1 \
+    --config retention.ms=86400000 \
+    --config compression.type=snappy \
+    --config min.insync.replicas=1 \
     --if-not-exists
 
 # # 센서 데이터 토픽들 생성
