@@ -19,7 +19,7 @@ graph TB
         
         MQTT -->|구독| TEL
         TEL -->|mqtt-messages 토픽| KAFKA
-        KAFKA -->|100개 파티션| CONSUMER
+        KAFKA -->|12개 파티션| CONSUMER
     end
     
     subgraph "데이터 저장 레이어"
@@ -54,7 +54,7 @@ graph TB
 
 ### 실시간 데이터 파이프라인
 - **서브초 지연시간**: 100ms 수집 간격으로 최대 200ms 플러시
-- **고처리량**: 병렬 처리를 위한 100개 Kafka 파티션
+- **고처리량**: 병렬 처리를 위한 12개 Kafka 파티션
 - **자동 확장**: 최대 성능을 위한 직접 파티션 할당
 
 ### WebSocket 스트리밍
@@ -92,6 +92,21 @@ graph TB
 - Make 유틸리티
 
 ### 설정 및 실행
+
+#### 1. 환경 변수 설정 (필수)
+```bash
+# .env 파일 생성
+cp .env.example .env
+
+# .env 파일을 열고 필수 값 변경:
+# - DATABASE_PASSWORD: PostgreSQL 비밀번호
+# - JWT_SECRET: JWT 토큰 시크릿 (openssl rand -base64 64로 생성)
+# - MQTT_USERNAME, MQTT_PASSWORD: MQTT 인증 정보 (프로덕션 환경)
+```
+
+⚠️ **중요**: `.env` 파일은 절대 Git에 커밋하지 마세요! 이미 `.gitignore`에 포함되어 있습니다.
+
+#### 2. 서비스 시작
 ```bash
 # 모든 서비스 초기화 및 시작
 make setup
@@ -270,11 +285,12 @@ SERVER_PORT=8081
 
 ## 📈 성능 특성
 
-- **데이터 수집**: 100ms 간격, 최대 200ms 미만 지연시간
+- **데이터 수집**: 100ms 간격, 최대 200ms 플러시 지연시간
+- **Kafka 파티션**: 12개 파티션으로 병렬 처리 최적화
 - **메시지 처리량**: 파티션당 초당 1000+ 메시지
 - **WebSocket 브로드캐스팅**: 배치 처리로 1초 간격
 - **동시 연결**: 다중 WebSocket 클라이언트 지원
-- **데이터 보관**: 설정 가능한 Redis TTL 및 Kafka 보관 정책
+- **데이터 보관**: 24시간 Kafka 보관 (Snappy 압축)
 
 ## 🔮 향후 개선사항
 

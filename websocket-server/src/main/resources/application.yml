@@ -40,6 +40,8 @@ mqtt:
     url: tcp://mosquitto:3123
   client:
     id: spring-boot-mqtt-client
+  username: ${MQTT_USERNAME:mqttuser}
+  password: ${MQTT_PASSWORD:mqttpass}
 
 # Swagger UI 설정
 springdoc:
