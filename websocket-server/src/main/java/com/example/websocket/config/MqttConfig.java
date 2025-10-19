@@ -17,17 +17,27 @@ public class MqttConfig {
     @Value("${mqtt.client.id:spring-boot-mqtt-client}")
     private String clientId;
 
+    @Value("${mqtt.username:mqttuser}")
+    private String username;
+
+    @Value("${mqtt.password:mqttpass}")
+    private String password;
+
     @Bean
     public MqttClient mqttClient() throws MqttException {
         MemoryPersistence persistence = new MemoryPersistence();
         MqttClient client = new MqttClient(brokerUrl, clientId, persistence);
-        
+
         MqttConnectOptions options = new MqttConnectOptions();
         options.setCleanSession(true);
         options.setConnectionTimeout(30);
         options.setKeepAliveInterval(60);
         options.setAutomaticReconnect(true);
-        
+
+        // Set MQTT authentication
+        options.setUserName(username);
+        options.setPassword(password.toCharArray());
+
         client.connect(options);
         return client;
     }

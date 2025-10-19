@@ -18,7 +18,18 @@ import java.util.Set;
 public class CoordinateBroadcastScheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinateBroadcastScheduler.class);
-    
+
+    // Redis Key Patterns
+    private static final String REDIS_ORIN_KEY_PATTERN = "orin:*:latest";
+    private static final String REDIS_ORIN_KEY_SEPARATOR = ":";
+    private static final int REDIS_ORIN_KEY_ID_INDEX = 1;
+
+    // WebSocket Message Types
+    private static final String MESSAGE_TYPE_COORDINATES = "coordinates";
+
+    // Logging Intervals
+    private static final long STATS_LOG_INTERVAL_MS = 5000; // 5 seconds
+
     private final CoordinateWebSocketHandler webSocketHandler;
     private final CoordinateService coordinateService;
     private final ObjectMapper objectMapper;
@@ -51,20 +62,20 @@ public class CoordinateBroadcastScheduler {
 
         try {
             // Redis에서 모든 ORIN ID 찾기
-            Set<String> orinKeys = coordinateService.getRedisTemplate().keys("orin:*:latest");
-            
+            Set<String> orinKeys = coordinateService.getRedisTemplate().keys(REDIS_ORIN_KEY_PATTERN);
+
             if (orinKeys != null && !orinKeys.isEmpty()) {
                 // 각 ORIN ID별로 데이터를 브로드캐스트
                 for (String orinKey : orinKeys) {
                     // orin:ORIN001:latest -> ORIN001
-                    String orinId = orinKey.split(":")[1];
+                    String orinId = orinKey.split(REDIS_ORIN_KEY_SEPARATOR)[REDIS_ORIN_KEY_ID_INDEX];
                     
                     CoordinateData coordinates = coordinateService.getLatestCoordinatesForOrin(orinId);
                     
                     if (coordinates != null) {
                         // 브로드캐스트용 메시지 생성
                         Map<String, Object> message = new HashMap<>();
-                        message.put("type", "coordinates");
+                        message.put("type", MESSAGE_TYPE_COORDINATES);
                         message.put("orinId", orinId);
                         message.put("data", coordinates);
                         message.put("timestamp", System.currentTimeMillis());
@@ -79,10 +90,10 @@ public class CoordinateBroadcastScheduler {
                                    orinId, coordinates.getCoordX(), coordinates.getCoordY());
                     }
                 }
-                
-                // 로깅 (5초마다 한 번씩만)
+
+                // 로깅 (STATS_LOG_INTERVAL_MS마다 한 번씩만)
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - lastBroadcastTime >= 5000) {
+                if (currentTime - lastBroadcastTime >= STATS_LOG_INTERVAL_MS) {
                     logger.info("Broadcasted coordinates for {} ORIN IDs to {} clients, Messages sent: {}", 
                               orinKeys.size(), activeSessionCount, messagesSent);
                     lastBroadcastTime = currentTime;
@@ -97,7 +108,7 @@ public class CoordinateBroadcastScheduler {
                 }
 
                 Map<String, Object> message = new HashMap<>();
-                message.put("type", "coordinates");
+                message.put("type", MESSAGE_TYPE_COORDINATES);
                 message.put("data", coordinates);
                 message.put("timestamp", System.currentTimeMillis());
                 message.put("activeClients", activeSessionCount);

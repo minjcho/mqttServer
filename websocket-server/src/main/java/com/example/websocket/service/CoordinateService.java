@@ -15,14 +15,38 @@ import java.util.*;
 public class CoordinateService {
 
     private static final Logger logger = LoggerFactory.getLogger(CoordinateService.class);
-    
+
+    // Redis Key Patterns and Prefixes
+    private static final String REDIS_KEY_PREFIX_MESSAGE = "message";
+    private static final String REDIS_KEY_PREFIX_ORIN = "orin";
+    private static final String REDIS_KEY_SUFFIX_LATEST = "latest";
+    private static final String REDIS_KEY_MESSAGE_COUNT = "message_count";
+    private static final String REDIS_KEY_SEPARATOR = ":";
+
+    // Message Field Names
+    private static final String FIELD_DATA = "data";
+    private static final String FIELD_TIMESTAMP = "timestamp";
+    private static final String FIELD_MESSAGE = "message";
+
+    // JSON Field Names
+    private static final String JSON_FIELD_FIELDS = "fields";
+    private static final String JSON_FIELD_VALUE = "value";
+    private static final String JSON_FIELD_PAYLOAD = "payload";
+    private static final String JSON_FIELD_COORD_X = "coordX";
+    private static final String JSON_FIELD_COORD_Y = "coordY";
+
+    // Default Values
+    private static final String DEFAULT_SOURCE_SYSTEM = "system";
+    private static final String DEFAULT_SOURCE_REDIS = "redis";
+    private static final String DEFAULT_SOURCE_RANDOM = "random";
+
     private final StringRedisTemplate redisTemplate;
     private final ObjectMapper objectMapper;
     
     @Value("${websocket.max-messages:10}")
     private int maxMessages;
 
-    private volatile CoordinateData latestCoordinate = new CoordinateData(0.0, 0.0, "", "system");
+    private volatile CoordinateData latestCoordinate = new CoordinateData(0.0, 0.0, "", DEFAULT_SOURCE_SYSTEM);
 
     public CoordinateService(StringRedisTemplate redisTemplate) {
         this.redisTemplate = redisTemplate;
@@ -34,7 +58,7 @@ public class CoordinateService {
      */
     public CoordinateData getLatestCoordinatesForOrin(String orinId) {
         try {
-            String orinKey = "orin:" + orinId + ":latest";
+            String orinKey = REDIS_KEY_PREFIX_ORIN + REDIS_KEY_SEPARATOR + orinId + REDIS_KEY_SEPARATOR + REDIS_KEY_SUFFIX_LATEST;
             Map<Object, Object> rawData = redisTemplate.opsForHash().entries(orinKey);
             
             if (rawData == null || rawData.isEmpty()) {
@@ -48,20 +72,20 @@ public class CoordinateService {
                 orinData.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
             }
             
-            if (!orinData.containsKey("data")) {
-                logger.debug("No 'data' field found for ORIN ID: {}. Available fields: {}", orinId, orinData.keySet());
+            if (!orinData.containsKey(FIELD_DATA)) {
+                logger.debug("No '{}' field found for ORIN ID: {}. Available fields: {}", FIELD_DATA, orinId, orinData.keySet());
                 return null;
             }
 
-            String dataJson = orinData.get("data");
-            String timestamp = orinData.getOrDefault("timestamp", "");
+            String dataJson = orinData.get(FIELD_DATA);
+            String timestamp = orinData.getOrDefault(FIELD_TIMESTAMP, "");
             JsonNode dataNode = objectMapper.readTree(dataJson);
-            
-            if (dataNode.has("coordX") && dataNode.has("coordY")) {
-                Double coordX = dataNode.get("coordX").asDouble();
-                Double coordY = dataNode.get("coordY").asDouble();
-                
-                CoordinateData coordinate = new CoordinateData(coordX, coordY, timestamp, "orin:" + orinId);
+
+            if (dataNode.has(JSON_FIELD_COORD_X) && dataNode.has(JSON_FIELD_COORD_Y)) {
+                Double coordX = dataNode.get(JSON_FIELD_COORD_X).asDouble();
+                Double coordY = dataNode.get(JSON_FIELD_COORD_Y).asDouble();
+
+                CoordinateData coordinate = new CoordinateData(coordX, coordY, timestamp, REDIS_KEY_PREFIX_ORIN + REDIS_KEY_SEPARATOR + orinId);
                 logger.debug("Successfully parsed coordinates for ORIN {}: X={}, Y={}", orinId, coordX, coordY);
                 return coordinate;
             } else {
@@ -80,7 +104,7 @@ public class CoordinateService {
      */
     public CoordinateData getLatestCoordinates() {
         try {
-            Set<String> messageKeys = redisTemplate.keys("message:mqtt-messages:*");
+            Set<String> messageKeys = redisTemplate.keys(REDIS_KEY_PREFIX_MESSAGE + REDIS_KEY_SEPARATOR + "mqtt-messages" + REDIS_KEY_SEPARATOR + "*");
             
             if (messageKeys == null || messageKeys.isEmpty()) {
                 logger.debug("No message keys found in Redis");
@@ -120,25 +144,25 @@ public class CoordinateService {
                 messageData.put(String.valueOf(entry.getKey()), String.valueOf(entry.getValue()));
             }
             
-            if (!messageData.containsKey("message")) {
-                logger.debug("❌ No 'message' field found. Available fields: {}", messageData.keySet());
+            if (!messageData.containsKey(FIELD_MESSAGE)) {
+                logger.debug("❌ No '{}' field found. Available fields: {}", FIELD_MESSAGE, messageData.keySet());
                 return latestCoordinate;
             }
 
-            String messageJson = messageData.get("message");
+            String messageJson = messageData.get(FIELD_MESSAGE);
             logger.debug("📝 Raw message JSON: {}", messageJson);
             JsonNode messageNode = objectMapper.readTree(messageJson);
             logger.debug("🔍 Parsed message structure: {}", messageNode.toPrettyString());
-            if (messageNode.has("fields") && messageNode.get("fields").has("value")) {
-                String valueString = messageNode.get("fields").get("value").asText();
+            if (messageNode.has(JSON_FIELD_FIELDS) && messageNode.get(JSON_FIELD_FIELDS).has(JSON_FIELD_VALUE)) {
+                String valueString = messageNode.get(JSON_FIELD_FIELDS).get(JSON_FIELD_VALUE).asText();
                 logger.debug("📊 Extracting coordinates from value: {}", valueString);
                 JsonNode valueNode = objectMapper.readTree(valueString);
-                
-                if (valueNode.has("coordX") && valueNode.has("coordY")) {
-                    Double coordX = valueNode.get("coordX").asDouble();
-                    Double coordY = valueNode.get("coordY").asDouble();
-                    String timestamp = messageData.getOrDefault("timestamp", "");
-                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
+
+                if (valueNode.has(JSON_FIELD_COORD_X) && valueNode.has(JSON_FIELD_COORD_Y)) {
+                    Double coordX = valueNode.get(JSON_FIELD_COORD_X).asDouble();
+                    Double coordY = valueNode.get(JSON_FIELD_COORD_Y).asDouble();
+                    String timestamp = messageData.getOrDefault(FIELD_TIMESTAMP, "");
+                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, DEFAULT_SOURCE_REDIS);
                     
                     logger.info("✅ Successfully updated coordinates: X={}, Y={} from key={}", 
                                coordX, coordY, latestKey);
@@ -147,17 +171,17 @@ public class CoordinateService {
                     logger.debug("⚠️ No coordX/coordY found in value: {}", valueNode);
                 }
             }
-            else if (messageNode.has("payload")) {
-                String payload = messageNode.get("payload").asText();
+            else if (messageNode.has(JSON_FIELD_PAYLOAD)) {
+                String payload = messageNode.get(JSON_FIELD_PAYLOAD).asText();
                 logger.debug("🐍 Python bridge format detected, payload: {}", payload);
-                
+
                 JsonNode payloadNode = objectMapper.readTree(payload);
-                if (payloadNode.has("coordX") && payloadNode.has("coordY")) {
-                    Double coordX = payloadNode.get("coordX").asDouble();
-                    Double coordY = payloadNode.get("coordY").asDouble();
-                    String timestamp = messageData.getOrDefault("timestamp", "");
-                    
-                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, "redis");
+                if (payloadNode.has(JSON_FIELD_COORD_X) && payloadNode.has(JSON_FIELD_COORD_Y)) {
+                    Double coordX = payloadNode.get(JSON_FIELD_COORD_X).asDouble();
+                    Double coordY = payloadNode.get(JSON_FIELD_COORD_Y).asDouble();
+                    String timestamp = messageData.getOrDefault(FIELD_TIMESTAMP, "");
+
+                    latestCoordinate = new CoordinateData(coordX, coordY, timestamp, DEFAULT_SOURCE_REDIS);
                     logger.info("✅ Successfully updated coordinates from Python format: X={}, Y={}", coordX, coordY);
                     return latestCoordinate;
                 }
@@ -182,8 +206,8 @@ public class CoordinateService {
         double coordX = Math.round((random.nextDouble() * 1000) * 100.0) / 100.0; // 0-1000, 소수점 2자리
         double coordY = Math.round((random.nextDouble() * 1000) * 100.0) / 100.0;
         String timestamp = String.valueOf(System.currentTimeMillis());
-        
-        return new CoordinateData(coordX, coordY, timestamp, "random");
+
+        return new CoordinateData(coordX, coordY, timestamp, DEFAULT_SOURCE_RANDOM);
     }
 
     /**
@@ -206,11 +230,11 @@ public class CoordinateService {
      */
     public Map<String, Object> getRedisStats() {
         Map<String, Object> stats = new HashMap<>();
-        
+
         try {
-            String messageCount = redisTemplate.opsForValue().get("message_count");
+            String messageCount = redisTemplate.opsForValue().get(REDIS_KEY_MESSAGE_COUNT);
             stats.put("messageCount", messageCount != null ? messageCount : 0);
-            Set<String> messageKeys = redisTemplate.keys("message:mqtt-messages:*");
+            Set<String> messageKeys = redisTemplate.keys(REDIS_KEY_PREFIX_MESSAGE + REDIS_KEY_SEPARATOR + "mqtt-messages" + REDIS_KEY_SEPARATOR + "*");
             stats.put("messageKeys", messageKeys != null ? messageKeys.size() : 0);
             
             stats.put("connected", true);
