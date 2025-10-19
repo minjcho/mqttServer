@@ -1,12 +1,13 @@
 FROM eclipse-mosquitto:2.0
 
-# Copy configuration files
+# Copy configuration
 COPY mosquitto.conf /mosquitto/config/
 
-# Create empty password file
-RUN touch /mosquitto/config/passwd && chmod 600 /mosquitto/config/passwd
+# Copy entrypoint script
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
-EXPOSE 3123
+EXPOSE 1883
 
-# Use default mosquitto entrypoint
-# Password file will be initialized via docker-compose command
+ENTRYPOINT ["/docker-entrypoint.sh"]
+CMD ["mosquitto", "-c", "/mosquitto/config/mosquitto.conf"]
