@@ -92,6 +92,21 @@ graph TB
 - Make 유틸리티
 
 ### 설정 및 실행
+
+#### 1. 환경 변수 설정 (필수)
+```bash
+# .env 파일 생성
+cp .env.example .env
+
+# .env 파일을 열고 필수 값 변경:
+# - DATABASE_PASSWORD: PostgreSQL 비밀번호
+# - JWT_SECRET: JWT 토큰 시크릿 (openssl rand -base64 64로 생성)
+# - MQTT_USERNAME, MQTT_PASSWORD: MQTT 인증 정보 (프로덕션 환경)
+```
+
+⚠️ **중요**: `.env` 파일은 절대 Git에 커밋하지 마세요! 이미 `.gitignore`에 포함되어 있습니다.
+
+#### 2. 서비스 시작
 ```bash
 # 모든 서비스 초기화 및 시작
 make setup
