@@ -254,6 +254,8 @@ def main():
                                         coord_data = json.loads(value_json)
 
                                         # Validate coordinates if present
+                                        validation_errors = []
+
                                         if 'coordX' in coord_data:
                                             try:
                                                 coord_data['coordX'] = validate_coordinate(
@@ -261,8 +263,9 @@ def main():
                                                 )
                                             except ValidationError as ve:
                                                 logger.warning(f"⚠️ Invalid coordX for {orin_id}: {ve}")
-                                                # Skip invalid data
-                                                continue
+                                                validation_errors.append('coordX')
+                                                # Remove invalid coordinate from data
+                                                coord_data.pop('coordX', None)
 
                                         if 'coordY' in coord_data:
                                             try:
@@ -271,8 +274,20 @@ def main():
                                                 )
                                             except ValidationError as ve:
                                                 logger.warning(f"⚠️ Invalid coordY for {orin_id}: {ve}")
-                                                # Skip invalid data
-                                                continue
+                                                validation_errors.append('coordY')
+                                                # Remove invalid coordinate from data
+                                                coord_data.pop('coordY', None)
+
+                                        # Only skip if BOTH coordinates are invalid
+                                        if 'coordX' in coord_data or 'coordY' in coord_data:
+                                            has_valid_coord = ('coordX' in coord_data) or ('coordY' in coord_data)
+                                        else:
+                                            has_valid_coord = False
+
+                                        # Skip only if no valid coordinates at all
+                                        if not has_valid_coord and validation_errors:
+                                            logger.warning(f"⚠️ Skipping {orin_id}: both coordinates invalid")
+                                            continue
 
                                         orin_data = {
                                             "orin_id": orin_id,

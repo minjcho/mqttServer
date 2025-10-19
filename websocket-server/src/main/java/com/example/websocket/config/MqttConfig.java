@@ -89,6 +89,8 @@ public class MqttConfig {
 
         private final MqttClient mqttClient;
         private final MqttConnectOptions mqttConnectOptions;
+        private volatile boolean connecting = true;
+        private final Object connectionLock = new Object();
 
         public MqttConnectionManager(MqttClient mqttClient, MqttConnectOptions mqttConnectOptions) {
             this.mqttClient = mqttClient;
@@ -109,36 +111,41 @@ public class MqttConfig {
                 logger.info("🔄 Starting MQTT connection attempts...");
 
                 while (attempts < MAX_RETRY_ATTEMPTS) {
-                    try {
-                        if (!mqttClient.isConnected()) {
-                            attempts++;
-                            logger.info("🔌 MQTT connection attempt {}/{}", attempts, MAX_RETRY_ATTEMPTS);
-
-                            mqttClient.connect(mqttConnectOptions);
-                            logger.info("✅ MQTT connected successfully to broker");
-                            return; // Success!
-                        }
-                    } catch (MqttException e) {
-                        logger.warn("⚠️  MQTT connection attempt {} failed: {} - {}",
-                                attempts, e.getReasonCode(), e.getMessage());
-
-                        if (attempts >= MAX_RETRY_ATTEMPTS) {
-                            logger.error("❌ Failed to connect to MQTT broker after {} attempts", MAX_RETRY_ATTEMPTS);
-                            logger.error("❌ MQTT functionality will not be available");
-                            logger.error("❌ Please check that Mosquitto broker is running and credentials are correct");
-                            return;
-                        }
-
-                        // Exponential backoff
+                    synchronized (connectionLock) {
                         try {
-                            logger.info("⏳ Retrying in {}ms...", delay);
-                            Thread.sleep(delay);
-                            delay = Math.min((long) (delay * BACKOFF_MULTIPLIER), MAX_RETRY_DELAY_MS);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            logger.error("❌ MQTT connection retry interrupted");
-                            return;
+                            if (!mqttClient.isConnected()) {
+                                attempts++;
+                                logger.info("🔌 MQTT connection attempt {}/{}", attempts, MAX_RETRY_ATTEMPTS);
+
+                                mqttClient.connect(mqttConnectOptions);
+                                logger.info("✅ MQTT connected successfully to broker");
+                                connecting = false;
+                                return; // Success!
+                            }
+                        } catch (MqttException e) {
+                            logger.warn("⚠️  MQTT connection attempt {} failed: {} - {}",
+                                    attempts, e.getReasonCode(), e.getMessage());
+
+                            if (attempts >= MAX_RETRY_ATTEMPTS) {
+                                logger.error("❌ Failed to connect to MQTT broker after {} attempts", MAX_RETRY_ATTEMPTS);
+                                logger.error("❌ MQTT functionality will not be available");
+                                logger.error("❌ Please check that Mosquitto broker is running and credentials are correct");
+                                connecting = false;
+                                return;
+                            }
                         }
+                    }
+
+                    // Exponential backoff (outside synchronized block)
+                    try {
+                        logger.info("⏳ Retrying in {}ms...", delay);
+                        Thread.sleep(delay);
+                        delay = Math.min((long) (delay * BACKOFF_MULTIPLIER), MAX_RETRY_DELAY_MS);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        logger.error("❌ MQTT connection retry interrupted");
+                        connecting = false;
+                        return;
                     }
                 }
             }, "mqtt-connection-thread").start();
@@ -146,15 +153,24 @@ public class MqttConfig {
 
         /**
          * Checks if MQTT client is connected.
+         * Thread-safe method to check connection status.
          */
-        public boolean isConnected() {
+        public synchronized boolean isConnected() {
             return mqttClient.isConnected();
         }
 
         /**
-         * Gets the MQTT client (may not be connected).
+         * Checks if connection attempt is still in progress.
          */
-        public MqttClient getClient() {
+        public boolean isConnecting() {
+            return connecting;
+        }
+
+        /**
+         * Gets the MQTT client (may not be connected).
+         * Thread-safe method to get client instance.
+         */
+        public synchronized MqttClient getClient() {
             return mqttClient;
         }
     }

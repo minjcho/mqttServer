@@ -10,14 +10,17 @@ if [ -z "$MQTT_USERNAME" ] || [ -z "$MQTT_PASSWORD" ]; then
     exit 1
 fi
 
-# Check for insecure defaults
-if [ "$MQTT_USERNAME" = "mqttuser" ] || [ "$MQTT_USERNAME" = "mqtt" ] || [ "$MQTT_USERNAME" = "admin" ]; then
+# Check for insecure defaults (case-insensitive)
+USERNAME_LOWER=$(echo "$MQTT_USERNAME" | tr '[:upper:]' '[:lower:]')
+PASSWORD_LOWER=$(echo "$MQTT_PASSWORD" | tr '[:upper:]' '[:lower:]')
+
+if [ "$USERNAME_LOWER" = "mqttuser" ] || [ "$USERNAME_LOWER" = "mqtt" ] || [ "$USERNAME_LOWER" = "admin" ] || [ "$USERNAME_LOWER" = "test" ]; then
     echo "❌ ERROR: Insecure MQTT username detected: $MQTT_USERNAME"
     echo "Please use a unique username in .env file"
     exit 1
 fi
 
-if [ "$MQTT_PASSWORD" = "mqttpass" ] || [ "$MQTT_PASSWORD" = "password" ] || [ "$MQTT_PASSWORD" = "admin" ]; then
+if [ "$PASSWORD_LOWER" = "mqttpass" ] || [ "$PASSWORD_LOWER" = "password" ] || [ "$PASSWORD_LOWER" = "admin" ] || [ "$PASSWORD_LOWER" = "test" ] || [ "$PASSWORD_LOWER" = "123456" ]; then
     echo "❌ ERROR: Insecure MQTT password detected"
     echo "Please use a strong password: openssl rand -base64 24"
     exit 1
