@@ -1,0 +1,20 @@
+# ===========================================
+# Test Dependencies for MQTT Server Pipeline
+# ===========================================
+
+# Testing Framework
+pytest>=7.4.0
+pytest-timeout>=2.1.0
+
+# MQTT Client
+paho-mqtt>=1.6.1
+
+# Redis Client
+redis>=5.0.0
+
+# HTTP Requests (for health checks)
+# Using urllib from standard library instead
+
+# Code Coverage (optional)
+coverage>=7.3.0
+pytest-cov>=4.1.0
