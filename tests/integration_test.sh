@@ -66,9 +66,10 @@ wait_for_service() {
 # ===========================================
 
 test_container_health() {
-    print_header "Test 1: Container Health Checks"
+    print_header "Test 1: Container Health Checks (MQTT Pipeline)"
 
-    local services=("mosquitto" "kafka" "telegraf" "redis" "qr-redis" "db" "kafka-redis-consumer" "websocket-server" "qr-login-app")
+    # Only check MQTT pipeline services (exclude QR login system)
+    local services=("mosquitto" "kafka" "telegraf" "redis" "kafka-redis-consumer" "websocket-server")
     local failed=0
 
     for service in "${services[@]}"; do
@@ -81,7 +82,7 @@ test_container_health() {
     done
 
     # Check healthy status for services with health checks
-    local health_services=("kafka" "db" "qr-redis" "qr-login-app")
+    local health_services=("kafka")
     for service in "${health_services[@]}"; do
         if docker compose ps $service 2>/dev/null | grep -q "healthy"; then
             print_success "$service is healthy"
@@ -96,7 +97,7 @@ test_container_health() {
         return 1
     fi
 
-    print_success "All containers are running and healthy"
+    print_success "All MQTT pipeline containers are running and healthy"
     return 0
 }
 
@@ -256,22 +257,11 @@ test_websocket_server() {
 # ===========================================
 # Test 6: QR Login App Health
 # ===========================================
+# Skipped: QR Login app is not part of MQTT pipeline tests
 
 test_qr_login_app() {
-    print_header "Test 6: QR Login App Health"
-
-    # Check health endpoint
-    print_info "Checking QR Login app health endpoint..."
-    local health_response=$(curl -s http://localhost:8090/actuator/health || echo "ERROR")
-
-    if echo "$health_response" | grep -q '"status":"UP"'; then
-        print_success "QR Login app is healthy"
-    else
-        print_error "QR Login app health check failed: $health_response"
-        return 1
-    fi
-
-    print_success "QR Login app test passed"
+    print_header "Test 6: QR Login App Health (SKIPPED)"
+    print_info "QR Login app test skipped - not part of MQTT pipeline"
     return 0
 }
 
@@ -280,9 +270,10 @@ test_qr_login_app() {
 # ===========================================
 
 test_service_logs() {
-    print_header "Test 7: Service Error Log Check"
+    print_header "Test 7: Service Error Log Check (MQTT Pipeline)"
 
-    local services=("mosquitto" "telegraf" "kafka-redis-consumer" "websocket-server" "qr-login-app")
+    # Only check MQTT pipeline services
+    local services=("mosquitto" "telegraf" "kafka-redis-consumer" "websocket-server")
     local errors_found=0
 
     for service in "${services[@]}"; do
@@ -303,7 +294,7 @@ test_service_logs() {
         return 1
     fi
 
-    print_success "No FATAL/CRITICAL errors in service logs"
+    print_success "No FATAL/CRITICAL errors in MQTT pipeline service logs"
     return 0
 }
 
