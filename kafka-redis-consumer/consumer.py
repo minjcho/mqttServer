@@ -10,6 +10,7 @@ import logging
 import re
 import math
 from datetime import datetime
+from typing import Final, Optional, Dict, Any
 from kafka import KafkaConsumer
 import redis
 
@@ -17,15 +18,15 @@ import redis
 # Constants
 # ==========================================
 # Redis Configuration
-REDIS_KEY_TTL = 86400  # 24 hours in seconds
+REDIS_KEY_TTL: Final[int] = 86400  # 24 hours in seconds
 
 # Validation
-COORD_MIN = -180.0
-COORD_MAX = 180.0
-COORD_PRECISION = 6
+COORD_MIN: Final[float] = -180.0
+COORD_MAX: Final[float] = 180.0
+COORD_PRECISION: Final[int] = 6
 
 # Logging Configuration
-LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
+LOG_LEVEL: Final[str] = os.getenv('LOG_LEVEL', 'INFO')
 
 # 단순한 로깅 설정
 logging.basicConfig(
@@ -46,7 +47,7 @@ class ValidationError(Exception):
 # ==========================================
 # Validation Functions
 # ==========================================
-def validate_coordinate(coord, coord_name):
+def validate_coordinate(coord: Any, coord_name: str) -> float:
     """
     Validate and normalize a coordinate value.
 
@@ -86,7 +87,7 @@ def validate_coordinate(coord, coord_name):
     return coord_normalized
 
 
-def validate_mqtt_credentials():
+def validate_mqtt_credentials() -> None:
     """
     Validate MQTT credentials are set and not using insecure defaults.
 
@@ -119,18 +120,18 @@ def validate_mqtt_credentials():
             f"Generate strong password: openssl rand -base64 24"
         )
 
-def extract_orin_id(mqtt_topic):
+def extract_orin_id(mqtt_topic: Optional[str]) -> Optional[str]:
     """MQTT 토픽에서 ORIN ID 추출 (예: sensors/ORIN001/coordinates -> ORIN001)"""
     if not mqtt_topic:
         return None
-    
+
     # sensors/ORIN001/coordinates 패턴에서 ORIN ID 추출
     match = re.search(r'sensors/([^/]+)/', mqtt_topic)
     if match:
         return match.group(1)
     return None
 
-def main():
+def main() -> None:
     logger.info("🚀 Starting Simplified Kafka-Redis Consumer")
 
     # Validate MQTT credentials on startup
