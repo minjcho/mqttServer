@@ -88,9 +88,7 @@ out/
 # Spring Boot
 HELP.md
 .gradle
-gradle/
-gradlew
-gradlew.bat
+# Note: gradle/, gradlew, gradlew.bat should be committed (Gradle wrapper)
 
 # IDE
 .idea/
